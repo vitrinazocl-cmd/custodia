@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>App Equipaje - Control de Custodia y Caja</title>
+  <!-- SEO & Meta Tags -->
+  <meta name="description" content="Aplicación premium de control interno de custodia de equipajes, prevención de fugas de dinero e integración con ERP.">
+  <meta name="theme-color" content="#0b57d0">
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="css/style.css">
+  <!-- Material Symbols Outlined -->
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0" rel="stylesheet">
+</head>
+<body>
+
+  <!-- ==========================================
+       PANTALLA DE LOGIN
+       ========================================== -->
+  <div id="login-screen" class="login-container">
+    <!-- Video de fondo publicitario -->
+    <video autoplay muted loop playsinline class="login-bg-video">
+      <source src="assets/promo_video.mp4" type="video/mp4">
+    </video>
+    <div class="login-video-overlay"></div>
+
+    <div class="login-card">
+      <div class="login-logo">
+        <span class="material-symbols-outlined">luggage</span>
+      </div>
+      <h2>Iniciar Sesión</h2>
+      <p>Selecciona tu turno e ingresa tus credenciales de operador para continuar.</p>
+      
+      <div class="error-message" id="login-error"></div>
+
+      <!-- Quick Roles Selection -->
+      <div class="login-quick-roles">
+        <button type="button" class="role-btn" onclick="quickFillLogin('dia@equipaje.com', 'dia123')">
+          <span class="material-symbols-outlined">wb_sunny</span>
+          <span class="role-btn-title">Turno Día</span>
+          <span class="role-btn-subtitle">dia@equipaje.com</span>
+        </button>
+        <button type="button" class="role-btn" onclick="quickFillLogin('noche@equipaje.com', 'noche123')">
+          <span class="material-symbols-outlined">bedtime</span>
+          <span class="role-btn-title">Turno Noche</span>
+          <span class="role-btn-subtitle">noche@equipaje.com</span>
+        </button>
+      </div>
+
+      <form id="login-form" onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label for="login-email">Correo Electrónico</label>
+          <div class="input-wrapper">
+            <span class="material-symbols-outlined prefix-icon">mail</span>
+            <input type="email" id="login-email" class="form-input" placeholder="ejemplo@equipaje.com" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="login-password">Contraseña</label>
+          <div class="input-wrapper">
+            <span class="material-symbols-outlined prefix-icon">lock</span>
+            <input type="password" id="login-password" class="form-input" placeholder="••••••••" required>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-primary">
+          Ingresar al Sistema
+          <span class="material-symbols-outlined">login</span>
+        </button>
+      </form>
+
+      <div style="margin-top: 24px; border-top: 1px dashed var(--border-color); padding-top: 20px;">
+        <button type="button" class="btn-secondary" onclick="showClientPortal(true)" style="width: 100%;">
+          <span class="material-symbols-outlined">track_changes</span>
+          Consultar Estado de Equipaje (Clientes)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       PORTAL DE CLIENTES (Seguimiento de Custodia)
+       ========================================== -->
+  <div id="client-portal-screen" class="login-container" style="display: none;">
+    <!-- Video de fondo publicitario -->
+    <video autoplay muted loop playsinline class="login-bg-video">
+      <source src="assets/promo_video.mp4" type="video/mp4">
+    </video>
+    <div class="login-video-overlay"></div>
+
+    <div class="login-card" style="max-width: 500px; width: 100%;">
+      <div class="login-logo" style="background-color: var(--accent-container); color: var(--accent-color);">
+        <span class="material-symbols-outlined">track_changes</span>
+      </div>
+      <h2>Consulta tu Custodia</h2>
+      <p>Ingresa el código de tu ticket para verificar el estado y saldo actual de tu equipaje.</p>
+      
+      <div class="search-inline" style="margin-bottom: 16px;">
+        <div class="form-group" style="flex: 1; margin-bottom: 0;">
+          <div class="input-wrapper">
+            <span class="material-symbols-outlined prefix-icon">tag</span>
+            <input type="text" id="client-portal-search-code" class="form-input" placeholder="Código de Ticket (ej. EQ-260803-0001)">
+          </div>
+        </div>
+        <button type="button" class="btn-icon" onclick="lookupClientPortalTicket()" title="Buscar estado" style="background-color: var(--accent-color); width: 48px; height: 48px; min-width: 48px;">
+          <span class="material-symbols-outlined">search</span>
+        </button>
+      </div>
+
+      <!-- Error message -->
+      <div class="error-message" id="client-portal-error" style="margin-bottom: 16px;"></div>
+
+      <!-- Tracking Results (Retail order status style) -->
+      <div id="client-portal-result" style="display: none; text-align: left; animation: slideUp 0.4s var(--transition-normal);">
+        
+        <!-- Tracking Timeline (Retail Style) -->
+        <div class="tracking-timeline">
+          <div class="timeline-step" id="track-step-received">
+            <div class="timeline-icon">
+              <span class="material-symbols-outlined">receipt_long</span>
+            </div>
+            <div class="timeline-content">
+              <h4>Equipaje Registrado</h4>
+              <p id="track-time-in">-</p>
+            </div>
+          </div>
+          
+          <div class="timeline-step" id="track-step-custody">
+            <div class="timeline-icon">
+              <span class="material-symbols-outlined">hourglass_empty</span>
+            </div>
+            <div class="timeline-content">
+              <h4>En Custodia Activa</h4>
+              <p id="track-custody-detail">Resguardado en bodega de seguridad</p>
+            </div>
+          </div>
+          
+          <div class="timeline-step" id="track-step-delivered">
+            <div class="timeline-icon">
+              <span class="material-symbols-outlined">check_circle</span>
+            </div>
+            <div class="timeline-content">
+              <h4>Retirado y Entregado</h4>
+              <p id="track-time-out">Pendiente de retiro</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Financial Summary Box -->
+        <div class="retail-balance-card" style="background-color: var(--bg-tertiary); border-radius: 12px; padding: 16px; border: 1px solid var(--border-color); margin: 20px 0;">
+          <h3 style="font-size: 14px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+            <span class="material-symbols-outlined" style="color: var(--primary-color);">payments</span>
+            Resumen de Cobro y Estadía
+          </h3>
+          <div style="font-size: 13px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: var(--text-secondary);">Detalle:</span>
+              <span id="track-pieces" style="font-weight: 500;">-</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: var(--text-secondary);">Días Transcurridos:</span>
+              <span id="track-days" style="font-weight: 500;">-</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; border-top: 1px dashed var(--border-color); padding-top: 8px;">
+              <span style="color: var(--text-secondary);">Abono Inicial Pagado:</span>
+              <span id="track-paid-initial" style="font-weight: 500;">-</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: var(--text-secondary);">Saldo Pendiente:</span>
+              <span id="track-balance-pending" style="font-weight: bold; color: var(--error-color);">-</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; border-top: 1px solid var(--border-color); padding-top: 8px; font-size: 14px; font-weight: bold;">
+              <span>Total Estimado al Retiro:</span>
+              <span id="track-total-cost" style="color: var(--success-color);">-</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Contact/Support Button for this luggage -->
+        <a id="client-portal-wsp-btn" href="https://wa.me/56951496392" target="_blank" class="btn-wsp" style="margin-bottom: 12px; text-decoration: none;">
+          <span class="material-symbols-outlined">chat</span>
+          ¿Necesitas Soporte? Escríbenos
+        </a>
+      </div>
+
+      <button type="button" class="btn-secondary" onclick="showClientPortal(false)" style="width: 100%; margin-top: 12px;">
+        <span class="material-symbols-outlined">arrow_back</span>
+        Volver al Acceso de Personal
+      </button>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       SHELL PRINCIPAL DE LA APLICACIÓN
+       ========================================== -->
+  <div id="app-shell" class="app-shell" style="display: none;">
+    <!-- Sidebar de Navegación (Notebook, Desktop) -->
+    <aside class="app-sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">
+          <span class="material-symbols-outlined">luggage</span>
+        </div>
+        <div class="sidebar-title">
+          <h1>EquipajeApp</h1>
+          <p>Control Interno</p>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <span class="nav-label">Operaciones</span>
+        <button class="nav-item active" onclick="switchView('pos')">
+          <span class="material-symbols-outlined">point_of_sale</span>
+          Nuevo Ticket
+        </button>
+        <button class="nav-item" onclick="switchView('checkout')">
+          <span class="material-symbols-outlined">outbox</span>
+          Retiro Equipaje
+        </button>
+
+        <span class="nav-label">Caja & Auditoría</span>
+        <button class="nav-item" onclick="switchView('audit')">
+          <span class="material-symbols-outlined">account_balance_wallet</span>
+          CAJA & AUDITORIA
+        </button>
+
+        <span class="nav-label">ERP Externo</span>
+        <button class="nav-item" onclick="switchView('erp')">
+          <span class="material-symbols-outlined">receipt_long</span>
+          Facturas & Folios
+        </button>
+
+        <span class="nav-label font-bold text-xs">Publicidad</span>
+        <button class="nav-item" onclick="switchView('promo')">
+          <span class="material-symbols-outlined">ad_units</span>
+          Video Promocional
+        </button>
+
+        <span class="nav-label">Ayuda</span>
+        <button class="nav-item" onclick="switchView('support')">
+          <span class="material-symbols-outlined">support_agent</span>
+          Soporte Técnico
+        </button>
+      </nav>
+
+      <footer class="sidebar-footer">
+        <div class="operator-info">
+          <span class="operator-name" id="user-display-name">Operador</span>
+          <span class="operator-shift" id="user-display-shift">
+            <span class="material-symbols-outlined" id="shift-icon">wb_sunny</span>
+            Turno Día
+          </span>
+        </div>
+        <button class="btn-logout" onclick="handleLogout()" title="Cerrar sesión">
+          <span class="material-symbols-outlined">logout</span>
+        </button>
+      </footer>
+    </aside>
+
+    <!-- Contenido Principal -->
+    <div class="main-wrapper">
+      <header class="main-header">
+        <div class="header-title">
+          <h2 id="view-title">Punto de Venta POS</h2>
+        </div>
+        <div class="header-actions">
+          <button class="theme-toggle-btn" onclick="toggleTheme()" title="Cambiar Tema">
+            <span class="material-symbols-outlined" id="theme-btn-icon">dark_mode</span>
+          </button>
+          <a href="https://wa.me/56951496392" target="_blank" class="whatsapp-support-pill">
+            <span class="material-symbols-outlined">call</span>
+            <span>+56 9 5149 6392</span>
+          </a>
+        </div>
+      </header>
+
+      <main class="view-container">
+        <!-- ==========================================
+             SECCIÓN 1: POS / NUEVO TICKET
+             ========================================== -->
+        <section id="view-pos" class="view-section active">
+          <div class="pos-layout">
+            <!-- Formulario de Registro -->
+            <div class="pos-form-container">
+              <!-- Cliente (RUT o Pasaporte) -->
+              <article class="card">
+                <div class="card-title">
+                  <span class="material-symbols-outlined">person_search</span>
+                  <h3>Búsqueda de Cliente</h3>
+                </div>
+                <div class="search-inline">
+                  <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                    <div class="input-wrapper">
+                      <span class="material-symbols-outlined prefix-icon">fingerprint</span>
+                      <input type="text" id="client-search-id" class="form-input" placeholder="RUT (ej. 12345678-9) o Pasaporte">
+                    </div>
+                  </div>
+                  <button type="button" class="btn-icon" onclick="lookupClient()" title="Buscar cliente">
+                    <span class="material-symbols-outlined">search</span>
+                  </button>
+                </div>
+
+                <div id="client-details-fields" style="display: none; animation: slideUp 0.3s var(--transition-fast);">
+                  <div class="form-group">
+                    <label for="client-name">Nombre Completo</label>
+                    <div class="input-wrapper">
+                      <span class="material-symbols-outlined prefix-icon">person</span>
+                      <input type="text" id="client-name" class="form-input" placeholder="Juan Pérez">
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label for="client-phone">Número de Teléfono</label>
+                    <div class="input-wrapper">
+                      <span class="material-symbols-outlined prefix-icon">phone</span>
+                      <input type="tel" id="client-phone" class="form-input" placeholder="+56 9 1234 5678">
+                    </div>
+                  </div>
+                </div>
+              </article>
+
+              <!-- Equipaje y Cobro -->
+              <article class="card" id="luggage-section" style="display: none;">
+                <div class="card-title">
+                  <span class="material-symbols-outlined">luggage</span>
+                  <h3>Detalles del Equipaje</h3>
+                </div>
+
+                <div class="form-group">
+                  <label>Tipo de Equipaje</label>
+                  <div class="type-selector">
+                    <div class="type-option selected" onclick="selectLuggageType('100 - Maleta', 2000, this)">
+                      <span class="material-symbols-outlined">luggage</span>
+                      <span class="type-label">100 - Maleta</span>
+                      <span class="type-price">Código 100</span>
+                    </div>
+                    <div class="type-option" onclick="selectLuggageType('500 - Mochila', 1500, this)">
+                      <span class="material-symbols-outlined">backpack</span>
+                      <span class="type-label">500 - Mochila</span>
+                      <span class="type-price">Código 500</span>
+                    </div>
+                    <div class="type-option" onclick="selectLuggageType('400 - Bolso', 1500, this)">
+                      <span class="material-symbols-outlined">shopping_bag</span>
+                      <span class="type-label">400 - Bolso</span>
+                      <span class="type-price">Código 400</span>
+                    </div>
+                    <div class="type-option" onclick="selectLuggageType('700 - Carrito', 3000, this)">
+                      <span class="material-symbols-outlined">shopping_cart</span>
+                      <span class="type-label">700 - Carrito</span>
+                      <span class="type-price">Código 700</span>
+                    </div>
+                    <div class="type-option" onclick="selectLuggageType('01000 - Bolsa Grande', 1000, this)">
+                      <span class="material-symbols-outlined">local_mall</span>
+                      <span class="type-label">01000 - Bolsa Grande</span>
+                      <span class="type-price">Código 01000</span>
+                    </div>
+                    <div class="type-option" onclick="selectLuggageType('2000 - Bicicleta', 4000, this)">
+                      <span class="material-symbols-outlined">pedal_bike</span>
+                      <span class="type-label">2000 - Bicicleta</span>
+                      <span class="type-price">Código 2000</span>
+                    </div>
+                    <div class="type-option" onclick="selectLuggageType('800 - Otros', 2000, this)">
+                      <span class="material-symbols-outlined">category</span>
+                      <span class="type-label">800 - Otros</span>
+                      <span class="type-price">Código 800</span>
+                    </div>
+                    <div class="type-option" onclick="selectLuggageType('900 - Día Adicional', 2000, this)">
+                      <span class="material-symbols-outlined">more_time</span>
+                      <span class="type-label">900 - Día Adicional</span>
+                      <span class="type-price">Código 900</span>
+                    </div>
+                    <div class="type-option" onclick="selectLuggageType('200 - Matutero', 3000, this)">
+                      <span class="material-symbols-outlined">inventory</span>
+                      <span class="type-label">200 - Matutero</span>
+                      <span class="type-price">Código 200</span>
+                    </div>
+                    <div class="type-option" onclick="selectLuggageType('03000 - Televisor', 5000, this)">
+                      <span class="material-symbols-outlined">tv</span>
+                      <span class="type-label">03000 - Televisor</span>
+                      <span class="type-price">Código 03000</span>
+                    </div>
+                    <div class="type-option" onclick="selectLuggageType('600 - Caja', 2000, this)">
+                      <span class="material-symbols-outlined">inventory_2</span>
+                      <span class="type-label">600 - Caja</span>
+                      <span class="type-price">Código 600</span>
+                    </div>
+                    <div class="type-option" onclick="selectLuggageType('300 - Fardo o Saco', 3000, this)">
+                      <span class="material-symbols-outlined">archive</span>
+                      <span class="type-label">300 - Fardo o Saco</span>
+                      <span class="type-price">Código 300</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label for="luggage-pieces">Cantidad de Bultos</label>
+                    <div class="input-wrapper">
+                      <span class="material-symbols-outlined prefix-icon">filter_9_plus</span>
+                      <input type="number" id="luggage-pieces" class="form-input" min="1" max="10" value="1" oninput="calculateCustomFee()">
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label for="luggage-fee">Tarifa Total Cobrada ($ CLP)</label>
+                    <div class="input-wrapper">
+                      <span class="material-symbols-outlined prefix-icon">payments</span>
+                      <input type="number" id="luggage-fee" class="form-input" placeholder="0" min="0">
+                    </div>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="luggage-notes">Notas / Observaciones del Equipaje</label>
+                  <div class="input-wrapper">
+                    <span class="material-symbols-outlined prefix-icon">note</span>
+                    <input type="text" id="luggage-notes" class="form-input" placeholder="Ej. maleta con candado, detalles de desgaste">
+                  </div>
+                </div>
+
+                <div class="action-bar">
+                  <button type="button" class="btn-secondary" onclick="resetPOSForm()">Cancelar</button>
+                  <button type="button" class="btn-primary" onclick="generateTicket()">
+                    <span class="material-symbols-outlined">confirmation_number</span>
+                    Generar Ticket
+                  </button>
+                </div>
+              </article>
+            </div>
+
+            <!-- Vista Previa del Ticket Generado -->
+            <div class="pos-ticket-preview">
+              <div id="no-ticket-placeholder" style="text-align: center; color: var(--text-tertiary); padding: 40px 20px;">
+                <span class="material-symbols-outlined" style="font-size: 64px; margin-bottom: 12px;">qr_code_2</span>
+                <p>Ingresa un cliente para comenzar y generar el ticket interno.</p>
+              </div>
+
+              <!-- Ticket Tactile Box -->
+              <div id="printable-receipt-content" class="ticket-receipt-card" style="display: none;">
+                <div class="receipt-header">
+                  <span class="material-symbols-outlined" style="font-size: 32px; color: var(--primary-color);">receipt_long</span>
+                  <h4>TICKET DE CUSTODIA</h4>
+                  <p>EquipajeApp Ltda.</p>
+                  <div class="receipt-barcode" id="ticket-preview-barcode">EQ-260805-0001</div>
+                </div>
+                <div class="receipt-body">
+                  <div class="receipt-row">
+                    <span class="label">Código Único</span>
+                    <span class="value" id="ticket-preview-code" style="font-weight: 700; color: var(--primary-color);">EQ-0000</span>
+                  </div>
+                  <div class="receipt-row">
+                    <span class="label">RUT/Pasaporte</span>
+                    <span class="value" id="ticket-preview-rut">12345678-9</span>
+                  </div>
+                  <div class="receipt-row">
+                    <span class="label">Cliente</span>
+                    <span class="value" id="ticket-preview-name">Juan Pérez</span>
+                  </div>
+                  <div class="receipt-row">
+                    <span class="label">Teléfono</span>
+                    <span class="value" id="ticket-preview-phone">+56912345678</span>
+                  </div>
+                  <hr style="border: none; border-top: 1px dashed var(--border-color); margin: 6px 0;">
+                  <div class="receipt-row">
+                    <span class="label">Tipo Equipaje</span>
+                    <span class="value" id="ticket-preview-type">Maleta Mediana</span>
+                  </div>
+                  <div class="receipt-row">
+                    <span class="label">Bultos</span>
+                    <span class="value" id="ticket-preview-pieces">1</span>
+                  </div>
+                  <div class="receipt-row">
+                    <span class="label">Ingreso</span>
+                    <span class="value" id="ticket-preview-date-in">05-08-2026 16:00</span>
+                  </div>
+                  <div class="receipt-row">
+                    <span class="label">Turno</span>
+                    <span class="value" id="ticket-preview-shift">Día</span>
+                  </div>
+                  <div class="receipt-row">
+                    <span class="label">Notas</span>
+                    <span class="value" id="ticket-preview-notes" style="font-style: italic; max-width: 180px; overflow-wrap: break-word;">-</span>
+                  </div>
+                  <hr style="border: none; border-top: 1px dashed var(--border-color); margin: 6px 0;">
+                  <div class="receipt-row total">
+                    <span class="label">Total Cobrado</span>
+                    <span class="value" id="ticket-preview-total">$3.500</span>
+                  </div>
+                </div>
+                <div class="receipt-footer">
+                  <p>Documento de Control Interno.<br>Conserve este ticket para el retiro.</p>
+                  <div class="receipt-actions">
+                    <button class="btn-wsp" id="btn-send-whatsapp" onclick="sendTicketWhatsApp()">
+                      <span class="material-symbols-outlined">share</span>
+                      Enviar por WhatsApp
+                    </button>
+                    <button class="btn-secondary" onclick="window.print()">
+                      <span class="material-symbols-outlined">print</span>
+                      Imprimir Ticket
+                    </button>
+                    <button class="btn-secondary" onclick="resetPOSForm()">
+                      <span class="material-symbols-outlined">add_circle</span>
+                      Nuevo Registro
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==========================================
+             SECCIÓN 2: RETIRO / CONTROL DE SALIDA
+             ========================================== -->
+        <section id="view-checkout" class="view-section">
+          <div style="max-width: 700px; margin: 0 auto;">
+            <article class="card">
+              <div class="card-title">
+                <span class="material-symbols-outlined">outbox</span>
+                <h3>Registrar Salida de Equipaje</h3>
+              </div>
+              <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 20px;">
+                Busca el ticket único entregado al pasajero para registrar su retiro y actualizar la cuadratura de caja.
+              </p>
+              
+              <div class="search-inline">
+                <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                  <div class="input-wrapper">
+                    <span class="material-symbols-outlined prefix-icon">qr_code_scanner</span>
+                    <input type="text" id="checkout-search-code" class="form-input" placeholder="Ingresa Código (ej. EQ-260805-0001) o RUT">
+                  </div>
+                </div>
+                <button type="button" class="btn-icon" onclick="lookupCheckout()" title="Buscar ticket">
+                  <span class="material-symbols-outlined">search</span>
+                </button>
+              </div>
+
+              <!-- Detalle de Ticket Encontrado -->
+              <div id="checkout-result" style="display: none; border-top: 1px solid var(--border-color); padding-top: 20px; margin-top: 20px; animation: slideUp 0.3s;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;">
+                  <div>
+                    <label style="font-size: 11px; text-transform: uppercase; color: var(--text-tertiary); font-weight: bold;">Código Ticket</label>
+                    <p id="chk-code" style="font-size: 18px; font-weight: bold; color: var(--primary-color);">-</p>
+                  </div>
+                  <div>
+                    <label style="font-size: 11px; text-transform: uppercase; color: var(--text-tertiary); font-weight: bold;">Estado Custodia</label>
+                    <p><span id="chk-status" class="badge badge-success">Activo</span></p>
+                  </div>
+                  <div>
+                    <label style="font-size: 11px; text-transform: uppercase; color: var(--text-tertiary); font-weight: bold;">Pasajero</label>
+                    <p id="chk-name" style="font-weight: 500;">-</p>
+                  </div>
+                  <div>
+                    <label style="font-size: 11px; text-transform: uppercase; color: var(--text-tertiary); font-weight: bold;">RUT / Pasaporte</label>
+                    <p id="chk-rut">-</p>
+                  </div>
+                  <div>
+                    <label style="font-size: 11px; text-transform: uppercase; color: var(--text-tertiary); font-weight: bold;">Equipaje</label>
+                    <p id="chk-type">-</p>
+                  </div>
+                  <div>
+                    <label style="font-size: 11px; text-transform: uppercase; color: var(--text-tertiary); font-weight: bold;">Pago Inicial</label>
+                    <p id="chk-fee" style="font-weight: 500;">-</p>
+                  </div>
+                  <div>
+                    <label style="font-size: 11px; text-transform: uppercase; color: var(--text-tertiary); font-weight: bold;">Fecha Ingreso</label>
+                    <p id="chk-date-in">-</p>
+                  </div>
+                  <div>
+                    <label style="font-size: 11px; text-transform: uppercase; color: var(--text-tertiary); font-weight: bold;">Días de Custodia</label>
+                    <p id="chk-days-stayed" style="font-weight: 500;">-</p>
+                  </div>
+                  <div>
+                    <label style="font-size: 11px; text-transform: uppercase; color: var(--text-tertiary); font-weight: bold;">Cargo Extra (Estadía Prolongada)</label>
+                    <p id="chk-additional-fee" style="font-weight: bold; color: var(--error-color);">-</p>
+                  </div>
+                  <div>
+                    <label style="font-size: 11px; text-transform: uppercase; color: var(--text-tertiary); font-weight: bold;">Pago Total Final</label>
+                    <p id="chk-total-fee" style="font-weight: bold; color: var(--success-color); font-size: 16px;">-</p>
+                  </div>
+                  <div>
+                    <label style="font-size: 11px; text-transform: uppercase; color: var(--text-tertiary); font-weight: bold;">Fecha Egreso</label>
+                    <p id="chk-date-out">-</p>
+                  </div>
+                </div>
+
+                <div id="chk-action-bar" class="action-bar" style="border-top: 1px solid var(--border-color); padding-top: 16px;">
+                  <button class="btn-secondary" onclick="resetCheckoutForm()">Cancelar</button>
+                  <button class="btn-primary" id="btn-confirm-checkout" onclick="confirmCheckout()" style="background-color: var(--success-color);">
+                    <span class="material-symbols-outlined">check_circle</span>
+                    Confirmar Retiro
+                  </button>
+                </div>
+              </div>
+
+              <div id="checkout-error" class="error-message" style="margin-top: 20px;"></div>
+            </article>
+          </div>
+        </section>
+
+        <!-- ==========================================
+             SECCIÓN 3: CAJA, AUDITORÍA Y CONTROL DE FUGAS
+             ========================================== -->
+        <section id="view-audit" class="view-section">
+          <!-- Tarjetas de Métricas -->
+          <div class="stats-grid">
+            <div class="stat-card stat-primary">
+              <div class="stat-icon">
+                <span class="material-symbols-outlined">inventory_2</span>
+              </div>
+              <div class="stat-info">
+                <span class="stat-value" id="stats-active-count">0</span>
+                <span class="stat-label">Equipajes en Custodia</span>
+              </div>
+            </div>
+
+            <div class="stat-card stat-success">
+              <div class="stat-icon">
+                <span class="material-symbols-outlined">payments</span>
+              </div>
+              <div class="stat-info">
+                <span class="stat-value" id="stats-collected-amount">$0</span>
+                <span class="stat-label">Recaudado (Tu Turno)</span>
+              </div>
+            </div>
+
+            <div class="stat-card stat-accent">
+              <div class="stat-icon">
+                <span class="material-symbols-outlined">group</span>
+              </div>
+              <div class="stat-info">
+                <span class="stat-value" id="stats-total-tickets">0</span>
+                <span class="stat-label">Servicios Registrados</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Banner de Cierre de Caja -->
+          <div class="action-banner" style="background: linear-gradient(135deg, var(--primary-color), var(--accent-color)); color: white; padding: 20px; border-radius: var(--border-radius); display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; box-shadow: var(--shadow-sm); flex-wrap: wrap; gap: 16px;">
+            <div>
+              <h3 style="margin: 0; font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                <span class="material-symbols-outlined">point_of_sale</span>
+                Cierre de Caja por Turno
+              </h3>
+              <p style="margin: 4px 0 0 0; font-size: 12px; opacity: 0.9;">
+                Genera el reporte de cuadratura física de efectivo del turno actual y realiza la entrega de caja limpia.
+              </p>
+            </div>
+            <button class="btn-primary" onclick="showShiftClosureModal()" style="background-color: white; color: var(--primary-color); border: none; font-weight: 600; padding: 8px 16px; border-radius: 20px; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; transition: all var(--transition-fast);">
+              <span class="material-symbols-outlined" style="font-size: 18px;">receipt_long</span>
+              Realizar Cierre de Turno
+            </button>
+          </div>
+
+          <!-- Equipajes Pernoctados / De un Día para Otro -->
+          <article class="card table-card" style="margin-bottom: 28px;">
+            <div class="table-header-bar" style="background-color: var(--accent-container); border-bottom: 1px solid var(--accent-color); display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <h3 style="color: var(--accent-color); display: flex; align-items: center; gap: 8px;">
+                  <span class="material-symbols-outlined" style="color: var(--accent-color);">schedule</span>
+                  Equipajes Pernoctados (De un día para otro o más)
+                </h3>
+                <p style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+                  Equipajes activos cuya fecha de ingreso es anterior al día de hoy. Requieren cobro adicional al retiro.
+                </p>
+              </div>
+              <button class="btn-toggle-fullscreen" onclick="toggleCardFullscreen(this)" title="Pantalla Completa" style="color: var(--accent-color); border: none; background: none; cursor: pointer;">
+                <span class="material-symbols-outlined">fullscreen</span>
+              </button>
+            </div>
+            <div class="responsive-table-wrapper">
+              <table class="app-table" id="overnight-tickets-table">
+                <thead>
+                  <tr>
+                    <th>Código Ticket</th>
+                    <th>RUT / Pasaporte</th>
+                    <th>Pasajero</th>
+                    <th>Fecha Ingreso</th>
+                    <th>Días Transcurridos</th>
+                    <th>Tipo</th>
+                    <th>Bultos</th>
+                    <th>Monto Inicial Pagado</th>
+                    <th>Acción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- Inyectado dinámicamente -->
+                </tbody>
+              </table>
+            </div>
+          </article>
+
+          <!-- Auditoría contra Fuga de Dinero -->
+          <article class="card table-card">
+            <div class="table-header-bar" style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: none; padding-bottom: 8px;">
+              <div>
+                <h3>Registro de Transacciones de Caja</h3>
+                <p style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+                  Libro auxiliar inmutable del turno para validación de montos y cuadratura.
+                </p>
+              </div>
+              <button class="btn-toggle-fullscreen" onclick="toggleCardFullscreen(this)" title="Pantalla Completa" style="border: none; background: none; cursor: pointer; margin-left: auto;">
+                <span class="material-symbols-outlined">fullscreen</span>
+              </button>
+            </div>
+            
+            <div style="padding: 0 24px 16px; display: flex; gap: 12px; align-items: center; border-bottom: 1px solid var(--border-color); flex-wrap: wrap;">
+              <select id="filter-tx-shift" class="filter-select" onchange="renderTransactions()">
+                <option value="todos">Todos los Turnos</option>
+                <option value="Día">Turno Día</option>
+                <option value="Noche">Turno Noche</option>
+              </select>
+              <button class="btn-secondary" onclick="exportTransactions()" style="padding: 8px 12px; font-size: 13px;" title="Exportar a CSV">
+                <span class="material-symbols-outlined" style="font-size: 18px;">download</span>
+                Exportar
+              </button>
+            </div>
+
+            <div class="responsive-table-wrapper">
+              <table class="app-table" id="transactions-table">
+                <thead>
+                  <tr>
+                    <th>Fecha / Hora</th>
+                    <th>Operador</th>
+                    <th>Turno</th>
+                    <th>Código Ticket</th>
+                    <th>Pasajero</th>
+                    <th>Acción</th>
+                    <th>Monto</th>
+                    <th>Detalles</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- Inyectado dinámicamente -->
+                </tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="card table-card" style="margin-top: 24px;">
+            <div class="table-header-bar" style="display: flex; justify-content: space-between; align-items: center;">
+              <h3>Log de Auditoría del Sistema</h3>
+              <button class="btn-toggle-fullscreen" onclick="toggleCardFullscreen(this)" title="Pantalla Completa" style="border: none; background: none; cursor: pointer;">
+                <span class="material-symbols-outlined">fullscreen</span>
+              </button>
+            </div>
+            <div class="responsive-table-wrapper">
+              <table class="app-table" id="system-logs-table">
+                <thead>
+                  <tr>
+                    <th>Fecha / Hora</th>
+                    <th>Evento de Trazabilidad</th>
+                    <th>Descripción</th>
+                    <th>Operador Autorizado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- Inyectado dinámicamente -->
+                </tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <!-- ==========================================
+             SECCIÓN 4: ERP EXTERNO (Simulador)
+             ========================================== -->
+        <section id="view-erp" class="view-section">
+          <div class="erp-grid">
+            <!-- Columna Izquierda: CAF y Folios -->
+            <div>
+              <article class="card">
+                <div class="card-title">
+                  <span class="material-symbols-outlined">cloud_sync</span>
+                  <h3>Punto de Venta POS & CAF</h3>
+                </div>
+                <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 20px;">
+                  Carga el Código de Autorización de Folios (CAF) provisto por el Servicio de Impuestos Internos o solicita folios al ERP externo para emitir facturas y boletas oficiales.
+                </p>
+
+                <div class="erp-card-metric">
+                  <h4>Folios Disponibles en Custodia</h4>
+                  <div class="value" id="erp-folios-available">460</div>
+                </div>
+
+                <div class="form-group">
+                  <label>Último CAF Cargado</label>
+                  <p id="erp-caf-filename" style="font-size: 13px; font-weight: 500; color: var(--text-secondary); margin: 4px 0 16px;">
+                    CAF_8123281_77_2026.xml
+                  </p>
+                </div>
+
+                <div class="file-upload-zone" onclick="triggerCAFUpload()">
+                  <span class="material-symbols-outlined">upload_file</span>
+                  <p>Cargar Archivo CAF XML Autorizado</p>
+                  <input type="file" id="caf-file-input" style="display: none;" onchange="handleCAFUpload(event)">
+                </div>
+
+                <div style="margin-top: 20px; display: flex; gap: 12px;">
+                  <button class="btn-primary" style="flex: 1;" onclick="requestMoreFolios()">
+                    <span class="material-symbols-outlined">add_box</span>
+                    Solicitar Folios
+                  </button>
+                  <button class="btn-secondary" onclick="syncERPFolios()">
+                    <span class="material-symbols-outlined">sync</span>
+                    Sincronizar
+                  </button>
+                </div>
+              </article>
+            </div>
+
+            <!-- Columna Derecha: Consulta de Documentos -->
+            <div>
+              <article class="card">
+                <div class="card-title">
+                  <span class="material-symbols-outlined">page_info</span>
+                  <h3>Consultar Documentos ERP</h3>
+                </div>
+                <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 20px;">
+                  Filtro y visualización rápida del estado de envío de boletas o facturas asociadas a la plataforma externa de contabilidad.
+                </p>
+
+                <div class="search-inline">
+                  <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                    <div class="input-wrapper">
+                      <span class="material-symbols-outlined prefix-icon">receipt</span>
+                      <input type="text" id="erp-search-doc" class="form-input" placeholder="Folio del Documento (ej. 1540)">
+                    </div>
+                  </div>
+                  <button type="button" class="btn-icon" onclick="lookupERPDocument()" title="Buscar documento">
+                    <span class="material-symbols-outlined">search</span>
+                  </button>
+                </div>
+
+                <!-- Info de Documento Simulado -->
+                <div id="erp-document-details" style="display: none; padding: 14px; border-radius: 12px; background-color: var(--bg-tertiary); margin-top: 16px;">
+                  <h4 style="font-size: 14px; margin-bottom: 10px;">Detalle de Documento ERP Tributario</h4>
+                  <div style="font-size: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <div><strong>Folio:</strong> <span id="erp-doc-id">1540</span></div>
+                    <div><strong>Tipo:</strong> <span id="erp-doc-type">Boleta Electrónica</span></div>
+                    <div><strong>Estado:</strong> <span class="badge badge-success" id="erp-doc-status">Aceptado SII</span></div>
+                    <div><strong>Monto:</strong> <span id="erp-doc-amount">$3.500 CLP</span></div>
+                    <div><strong>Fecha:</strong> <span id="erp-doc-date">05-08-2026</span></div>
+                    <div><strong>Rut Receptor:</strong> <span id="erp-doc-rut">12.345.678-9</span></div>
+                  </div>
+                </div>
+
+                <div class="card-title" style="margin-top: 32px; border-bottom: none; margin-bottom: 10px;">
+                  <span class="material-symbols-outlined">stars</span>
+                  <h3>Círculo de Compradores</h3>
+                </div>
+                <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+                  Programa de fidelización automatizado. Al registrar el equipaje con el RUT del cliente, el ERP externo valida beneficios y descuentos especiales acumulados por visitas repetidas.
+                </p>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==========================================
+             SECCIÓN 5: SOPORTE / CONTACTO
+             ========================================== -->
+        <section id="view-support" class="view-section">
+          <div class="contact-card-box">
+            <span class="material-symbols-outlined" style="font-size: 56px; color: var(--primary-color); margin-bottom: 16px;">support_agent</span>
+            <h3>Soporte y Contacto</h3>
+            <p>
+              ¿Tienes algún inconveniente con el timbraje de folios, cargas de archivos CAF, discrepancias en caja o requieres soporte técnico general? Comunícate directamente con nuestro equipo.
+            </p>
+            <div class="contact-phone-badge">
+              <span class="material-symbols-outlined">chat</span>
+              +56 9 5149 6392
+            </div>
+            <div>
+              <a href="https://wa.me/56951496392?text=Hola,%20necesito%20soporte%20tecnico%20con%20la%20App%20de%20Equipaje" target="_blank" class="btn-wsp" style="display: inline-flex; width: auto; padding: 14px 28px;">
+                <span class="material-symbols-outlined">chat_bubble</span>
+                Enviar WhatsApp Directo
+              </a>
+            </div>
+        </section>
+
+        <!-- ==========================================
+             SECCIÓN 6: VIDEO PROMOCIONAL / PUBLICIDAD
+             ========================================== -->
+        <section id="view-promo" class="view-section">
+          <div style="max-width: 800px; margin: 0 auto;">
+            <!-- Banner de Fachada -->
+            <article class="card" style="padding: 0; overflow: hidden; margin-bottom: 24px;">
+              <div style="position: relative; height: 240px; overflow: hidden;">
+                <img src="assets/custodia_local.jpeg" alt="Fachada Custodia Principal" style="width: 100%; height: 100%; object-fit: cover;">
+                <div style="position: absolute; inset: 0; background: linear-gradient(180deg, transparent 40%, rgba(15,23,42,0.85) 100%);"></div>
+                <div style="position: absolute; bottom: 20px; left: 24px;">
+                  <span class="badge badge-info" style="margin-bottom: 8px;">Establecimiento Físico</span>
+                  <h3 style="color: white; font-size: 24px; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">Custodia de Equipaje Principal</h3>
+                </div>
+              </div>
+              <div style="padding: 20px;">
+                <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.6;">
+                  Esta es la fachada de nuestro local, un punto neurálgico diseñado para ofrecer seguridad y tranquilidad a todos los viajeros. Nuestra presencia física nos consolida como líderes del sector en la región.
+                </p>
+              </div>
+            </article>
+
+            <!-- Video Promocional -->
+            <article class="card">
+              <div class="card-title">
+                <span class="material-symbols-outlined">video_library</span>
+                <h3>Spot Publicitario - Custodia</h3>
+              </div>
+              <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 20px;">
+                Video publicitario diseñado para la promoción y fidelización del cliente final en pantallas locales y redes sociales.
+              </p>
+
+              <!-- Device Frame Mockup for Video -->
+              <div style="background-color: #000; border-radius: 16px; overflow: hidden; box-shadow: var(--shadow-lg); border: 4px solid var(--border-color); aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; position: relative;">
+                <video controls width="100%" height="100%" poster="assets/custodia_local.jpeg" style="object-fit: contain;">
+                  <source src="assets/promo_video.mp4" type="video/mp4">
+                  Tu navegador no soporta reproducción de videos HTML5.
+                </video>
+              </div>
+
+              <div style="margin-top: 24px; text-align: center; border-top: 1px solid var(--border-color); padding-top: 20px;">
+                <h4 style="font-size: 16px; margin-bottom: 8px;">Diseño de Campaña Publicitaria</h4>
+                <p style="font-size: 13px; color: var(--text-secondary); max-width: 600px; margin: 0 auto; line-height: 1.5;">
+                  "Custodia Segura, Viaje Ligero." Este video está optimizado para proyectarse en la pantalla de bienvenida y en el punto de atención para capturar la atención del cliente mientras se realiza la cuadratura de caja y emisión de boletas.
+                </p>
+              </div>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Menú de Navegación Móvil (Smartphones & Tablets) -->
+    <nav class="mobile-nav">
+      <button class="mobile-nav-item active" onclick="switchView('pos')">
+        <span class="material-symbols-outlined">point_of_sale</span>
+        POS
+      </button>
+      <button class="mobile-nav-item" onclick="switchView('checkout')">
+        <span class="material-symbols-outlined">outbox</span>
+        Retiro
+      </button>
+      <button class="mobile-nav-item" onclick="switchView('audit')">
+        <span class="material-symbols-outlined">account_balance_wallet</span>
+        Caja & Audit.
+      </button>
+      <button class="mobile-nav-item" onclick="switchView('erp')">
+        <span class="material-symbols-outlined">receipt_long</span>
+        ERP
+      </button>
+      <button class="mobile-nav-item" onclick="switchView('support')">
+        <span class="material-symbols-outlined">support_agent</span>
+        Contacto
+      </button>
+    </nav>
+  </div>
+
+  <!-- Modal Cierre de Caja -->
+  <div id="closure-modal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 100000; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+    <div class="card" style="width: 100%; max-width: 480px; padding: 24px; animation: slideUp 0.3s var(--transition-normal); margin: 16px; display: flex; flex-direction: column;">
+      <div class="card-title" style="border-bottom: 1px solid var(--border-color); padding-bottom: 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+        <span class="material-symbols-outlined" style="color: var(--primary-color);">receipt_long</span>
+        <h3 style="margin: 0;">Cierre de Caja por Turno</h3>
+      </div>
+      
+      <div id="closure-modal-body" style="font-size: 14px; line-height: 1.5; overflow-y: auto; max-height: 60vh;">
+        <!-- Filled dynamically -->
+      </div>
+      
+      <div class="action-bar" style="border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: 20px; display: flex; justify-content: flex-end; gap: 12px;">
+        <button class="btn-secondary" onclick="closeClosureModal()" style="padding: 8px 16px;">Cancelar</button>
+        <button class="btn-primary" id="btn-confirm-closure" onclick="confirmShiftClosure()" style="background-color: var(--success-color); color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
+          <span class="material-symbols-outlined" style="font-size: 18px;">done_all</span>
+          Confirmar & Imprimir Cierre
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/db.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
