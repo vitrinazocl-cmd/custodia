@@ -166,6 +166,7 @@ function lookupClient() {
     // Fill client data (Already recognized)
     document.getElementById('client-name').value = client.name;
     document.getElementById('client-phone').value = client.phone;
+    document.getElementById('client-email').value = client.email || '';
     document.getElementById('client-name').focus();
     
     // Add visual notice
@@ -174,6 +175,7 @@ function lookupClient() {
     // New Client: leave inputs blank for filling
     document.getElementById('client-name').value = '';
     document.getElementById('client-phone').value = '+56 9 ';
+    document.getElementById('client-email').value = '';
     document.getElementById('client-name').focus();
   }
 }
@@ -203,6 +205,7 @@ function generateTicket() {
   const clientId = document.getElementById('client-search-id').value.trim();
   const clientName = document.getElementById('client-name').value.trim();
   const clientPhone = document.getElementById('client-phone').value.trim();
+  const clientEmail = document.getElementById('client-email').value.trim();
   const luggagePieces = document.getElementById('luggage-pieces').value;
   const luggageFee = document.getElementById('luggage-fee').value;
   const luggageNotes = document.getElementById('luggage-notes').value.trim();
@@ -216,7 +219,8 @@ function generateTicket() {
   const clientData = {
     id: clientId,
     name: clientName,
-    phone: clientPhone
+    phone: clientPhone,
+    email: clientEmail
   };
 
   const luggageData = {
@@ -226,16 +230,16 @@ function generateTicket() {
     notes: luggageNotes
   };
 
-  // Save to DB (returns created ticket containing code and dates)
+  // Save to DB (returns created ticket containing code, tagCode, and dates)
   const ticket = DB.createTicket(clientData, luggageData);
   activeCreatedTicket = ticket;
 
   // Show ticket preview card
   document.getElementById('no-ticket-placeholder').style.display = 'none';
   const receiptCard = document.getElementById('printable-receipt-content');
-  receiptCard.style.display = 'flex';
+  receiptCard.style.display = 'block'; // Make visible
   
-  // Fill receipts nodes
+  // Fill Client Copy nodes
   document.getElementById('ticket-preview-barcode').innerText = ticket.code;
   document.getElementById('ticket-preview-code').innerText = ticket.code;
   document.getElementById('ticket-preview-rut').innerText = ticket.client.id;
@@ -244,16 +248,30 @@ function generateTicket() {
   document.getElementById('ticket-preview-type').innerText = ticket.luggageType;
   document.getElementById('ticket-preview-pieces').innerText = ticket.pieces;
   
+  const dateObj = new Date(ticket.dateIn);
+  const formattedDate = dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+  
+  document.getElementById('ticket-preview-date-in').innerText = formattedDate;
+  document.getElementById('ticket-preview-shift').innerText = ticket.shift;
+  document.getElementById('ticket-preview-notes').innerText = ticket.notes || 'Ninguna';
+  document.getElementById('ticket-preview-total').innerText = '$' + parseFloat(ticket.fee).toLocaleString('es-CL');
+
+  // Fill Cashier Copy nodes
+  document.getElementById('ticket-preview-barcode-cashier').innerText = ticket.code;
+  document.getElementById('ticket-preview-code-cashier').innerText = ticket.code;
+  document.getElementById('ticket-preview-rut-cashier').innerText = ticket.client.id;
+  document.getElementById('ticket-preview-name-cashier').innerText = ticket.client.name;
+  document.getElementById('ticket-preview-phone-cashier').innerText = ticket.client.phone;
+  document.getElementById('ticket-preview-type-cashier').innerText = ticket.luggageType;
+  document.getElementById('ticket-preview-pieces-cashier').innerText = ticket.pieces;
+  document.getElementById('ticket-preview-date-in-cashier').innerText = formattedDate;
+  document.getElementById('ticket-preview-shift-cashier').innerText = ticket.shift;
+  document.getElementById('ticket-preview-total-cashier').innerText = '$' + parseFloat(ticket.fee).toLocaleString('es-CL');
+  
   // Fill suitcase tag elements (drawn format)
   document.getElementById('ticket-preview-tag-code').innerText = ticket.tagCode || '-';
   document.getElementById('ticket-preview-tag-name').innerText = ticket.client.name;
   document.getElementById('ticket-preview-tag-rut').innerText = ticket.client.id;
-  
-  const dateObj = new Date(ticket.dateIn);
-  document.getElementById('ticket-preview-date-in').innerText = dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-  document.getElementById('ticket-preview-shift').innerText = ticket.shift;
-  document.getElementById('ticket-preview-notes').innerText = ticket.notes || 'Ninguna';
-  document.getElementById('ticket-preview-total').innerText = '$' + parseFloat(ticket.fee).toLocaleString('es-CL');
 
   // Trigger sound effect or visual confirmation
   DB.logSystemEvent('Emisión Ticket', `Se generó ticket interno ${ticket.code} para cliente ${clientName} (${clientId}) por un monto de $${ticket.fee}.`);
@@ -279,10 +297,50 @@ function sendTicketWhatsApp() {
   DB.logSystemEvent('Envío WhatsApp', `Se envió comprobante del ticket ${activeCreatedTicket.code} al teléfono ${phone} vía API WhatsApp.`);
 }
 
+function sendTicketEmail() {
+  if (!activeCreatedTicket) return;
+
+  const subject = `Comprobante de Custodia Equipaje - Ticket ${activeCreatedTicket.code}`;
+  const body = 
+    `COMPROBANTE DE CUSTODIA (CONTROL INTERNO)\n` +
+    `Custodia Express Ltda. • RUT: 76.543.210-K\n` +
+    `------------------------------------------\n` +
+    `CÓDIGO ÚNICO: ${activeCreatedTicket.code}\n` +
+    `ETIQUETA EQUIPAJE: ${activeCreatedTicket.tagCode || '-'}\n` +
+    `CLIENTE: ${activeCreatedTicket.client.name}\n` +
+    `RUT/PASAPORTE: ${activeCreatedTicket.client.id}\n` +
+    `TIPO EQUIPAJE: ${activeCreatedTicket.luggageType}\n` +
+    `BULTOS: ${activeCreatedTicket.pieces}\n` +
+    `INGRESO: ${new Date(activeCreatedTicket.dateIn).toLocaleString('es-CL')}\n` +
+    `TURNO/OPERADOR: ${activeCreatedTicket.shift} / ${activeCreatedTicket.createdBy}\n` +
+    `TOTAL COBRADO: $${parseFloat(activeCreatedTicket.fee).toLocaleString('es-CL')} CLP\n` +
+    `------------------------------------------\n\n` +
+    `CONTRATO DE DEPÓSITO - CONDICIONES LEGALES (Ley 19.496):\n` +
+    `1. La responsabilidad de la empresa por pérdida, robo o daño queda limitada a un valor máximo de 3 UF por bulto, excepto declaración previa de valor del contenido y pago de tarifa adicional correspondiente.\n` +
+    `2. Transcurridos 30 días corridos de bodegaje sin retiro, el equipaje se presumirá abandonado (Art. 2235 Código Civil), facultando al custodio a rematar o desechar el bulto para cobro de costos devengados.\n` +
+    `3. Documento de Control Interno. La boleta fiscal (SII) es emitida de forma diferida por nuestro sistema ERP central y enviada por correo electrónico al cliente.\n\n` +
+    `¡Gracias por preferir nuestro servicio de custodia!`;
+
+  let clientEmail = activeCreatedTicket.client.email;
+  if (!clientEmail) {
+    clientEmail = prompt('Ingresa el correo electrónico del cliente para enviar el comprobante:', '');
+  } else {
+    clientEmail = prompt('Confirmar o cambiar correo de destino:', clientEmail);
+  }
+  
+  if (!clientEmail) return;
+
+  const mailtoUrl = `mailto:${clientEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.location.href = mailtoUrl;
+
+  DB.logSystemEvent('Envío Correo', `Se envió comprobante del ticket ${activeCreatedTicket.code} al correo ${clientEmail}.`);
+}
+
 function resetPOSForm() {
   document.getElementById('client-search-id').value = '';
   document.getElementById('client-name').value = '';
   document.getElementById('client-phone').value = '';
+  document.getElementById('client-email').value = '';
   document.getElementById('client-details-fields').style.display = 'none';
   document.getElementById('luggage-section').style.display = 'none';
   document.getElementById('luggage-pieces').value = 1;
