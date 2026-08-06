@@ -587,6 +587,7 @@ body.theme-night .login-card {
   align-items: center;
   gap: 20px;
   transition: transform var(--transition-fast);
+  will-change: transform;
 }
 
 .stat-card:hover {
@@ -659,6 +660,7 @@ body.theme-night .login-card {
   border: 1px solid var(--border-color);
   margin-bottom: 24px;
   transition: background-color var(--transition-normal), border-color var(--transition-normal);
+  will-change: transform, opacity;
 }
 
 .card-title {

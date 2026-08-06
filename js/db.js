@@ -90,6 +90,7 @@ const DB = (() => {
           {
             id: 'tk_seed1',
             code: 'EQ-260803-0001',
+            tagCode: 'A31 - 1',
             client: {
               id: '12345678-9',
               name: 'Juan Pérez',
@@ -142,6 +143,24 @@ const DB = (() => {
       this.saveClient(clientData);
 
       const timestamp = new Date();
+      
+      // Calculate tag code: Letter + Week + "-" + DailySequence
+      const daysLetters = ['G', 'A', 'B', 'C', 'D', 'E', 'F'];
+      const dayLetter = daysLetters[timestamp.getDay()];
+      
+      const getWeekNumber = (date) => {
+        const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+        const dayNum = d.getUTCDay() || 7;
+        d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+        const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+        return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+      };
+      const weekNum = getWeekNumber(timestamp);
+      
+      const todayMidnight = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate());
+      const dailySequence = tickets.filter(t => new Date(t.dateIn) >= todayMidnight).length + 1;
+      const tagCode = `${dayLetter}${weekNum} - ${dailySequence}`;
+
       // Generate unique ticket code: EQ-YYMMDD-XXX
       const dateStr = timestamp.toISOString().slice(2, 10).replace(/-/g, '');
       const sequence = String(tickets.length + 1).padStart(4, '0');
@@ -150,6 +169,7 @@ const DB = (() => {
       const newTicket = {
         id: 'tk_' + Math.random().toString(36).substr(2, 9),
         code: ticketCode,
+        tagCode: tagCode,
         client: {
           id: clientData.id,
           name: clientData.name,

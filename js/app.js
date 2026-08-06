@@ -244,6 +244,11 @@ function generateTicket() {
   document.getElementById('ticket-preview-type').innerText = ticket.luggageType;
   document.getElementById('ticket-preview-pieces').innerText = ticket.pieces;
   
+  // Fill suitcase tag elements (drawn format)
+  document.getElementById('ticket-preview-tag-code').innerText = ticket.tagCode || '-';
+  document.getElementById('ticket-preview-tag-name').innerText = ticket.client.name;
+  document.getElementById('ticket-preview-tag-rut').innerText = ticket.client.id;
+  
   const dateObj = new Date(ticket.dateIn);
   document.getElementById('ticket-preview-date-in').innerText = dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
   document.getElementById('ticket-preview-shift').innerText = ticket.shift;
@@ -260,7 +265,8 @@ function sendTicketWhatsApp() {
 
   const phone = activeCreatedTicket.client.phone.replace(/[^0-9]/g, '');
   const message = `*TICKET DE CUSTODIA - EQUIPAJEAPP*\n\n` +
-                  `*Código:* ${activeCreatedTicket.code}\n` +
+                  `*Etiqueta Equipaje:* ${activeCreatedTicket.tagCode || '-'}\n` +
+                  `*Código de Control:* ${activeCreatedTicket.code}\n` +
                   `*Cliente:* ${activeCreatedTicket.client.name}\n` +
                   `*RUT/Pasaporte:* ${activeCreatedTicket.client.id}\n` +
                   `*Detalle:* ${activeCreatedTicket.pieces} pieza(s) - ${activeCreatedTicket.luggageType}\n` +
@@ -315,8 +321,10 @@ function lookupCheckout() {
 
   const tickets = DB.getTickets();
   // Search by code or by RUT/Passport
+  const cleanSearch = searchCode.replace(/\s+/g, '').toUpperCase();
   const foundTicket = tickets.find(t => 
     t.code.toUpperCase() === searchCode.toUpperCase() || 
+    (t.tagCode && t.tagCode.replace(/\s+/g, '').toUpperCase() === cleanSearch) ||
     t.client.id.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() === searchCode.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()
   );
 
@@ -832,8 +840,11 @@ function lookupClientPortalTicket() {
     return;
   }
 
-  const tickets = DB.getTickets();
-  const foundTicket = tickets.find(t => t.code.toUpperCase() === searchCode.toUpperCase());
+  const cleanSearch = searchCode.replace(/\s+/g, '').toUpperCase();
+  const foundTicket = tickets.find(t => 
+    t.code.toUpperCase() === searchCode.toUpperCase() ||
+    (t.tagCode && t.tagCode.replace(/\s+/g, '').toUpperCase() === cleanSearch)
+  );
 
   if (!foundTicket) {
     errorDiv.innerText = 'No se encontró ningún ticket de custodia con el código ingresado. Verifica e intenta nuevamente.';
