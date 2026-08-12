@@ -352,7 +352,19 @@ async function generateTicket() {
 function sendTicketWhatsApp() {
   if (!activeCreatedTicket) return;
 
-  const phone = activeCreatedTicket.client.phone.replace(/[^0-9]/g, '');
+  let phone = activeCreatedTicket.client.phone.replace(/[^0-9]/g, '');
+  
+  // Si tiene 9 dígitos y empieza con 9, asumimos celular chileno (le agregamos el 56 de código de país)
+  if (phone.length === 9 && phone.startsWith('9')) {
+    phone = '56' + phone;
+  }
+
+  // Si el teléfono no tiene la longitud suficiente, avisar
+  if (phone.length < 9) {
+    alert("⚠️ El teléfono registrado no es válido para enviar WhatsApp (mínimo 9 dígitos).");
+    return;
+  }
+
   const message = `*TICKET DE CUSTODIA - EQUIPAJEAPP*\n\n` +
                   `*Etiqueta Equipaje:* ${activeCreatedTicket.tagCode || '-'}\n` +
                   `*Código de Control:* ${activeCreatedTicket.code}\n` +
@@ -364,7 +376,12 @@ function sendTicketWhatsApp() {
                   `Conserva este mensaje para el retiro de tu equipaje. ¡Muchas gracias!`;
 
   const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-  window.open(url, '_blank');
+  const newWindow = window.open(url, '_blank');
+  
+  if (!newWindow || newWindow.closed || typeof newWindow.closed == 'undefined') {
+    alert("⚠️ El navegador bloqueó la ventana de WhatsApp. Por favor, permite las ventanas emergentes (pop-ups) para este sitio.");
+  }
+  
   DB.logSystemEvent('Envío WhatsApp', `Se envió comprobante del ticket ${activeCreatedTicket.code} al teléfono ${phone} vía API WhatsApp.`);
 }
 
@@ -927,14 +944,14 @@ function setReceiptFormat(format) {
 function printBoletaAndSendWhatsApp() {
   if (!activeCreatedTicket) return;
 
-  // 1. Forzar formato Boleta SII para la impresión
+  // 1. Forzar formato Boleta SII para la impresión física
   setReceiptFormat('sii');
 
-  // 2. Abrir el cuadro de diálogo de impresión del navegador
-  window.print();
-
-  // 3. Enviar automáticamente el ticket de control interno por WhatsApp al cliente
+  // 2. Enviar automáticamente el ticket de control interno por WhatsApp
   sendTicketWhatsApp();
+
+  // 3. Abrir el diálogo de impresión del navegador de forma síncrona
+  window.print();
 }
 
 function generateTEDBarcodeSVG(rutEmisor, folio, total, fecha) {
