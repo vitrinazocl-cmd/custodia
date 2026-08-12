@@ -220,20 +220,20 @@ const DB = (() => {
       
       // Determine daily rate
       const prices = {
-        '100 - Maleta': 2000,
-        '500 - Mochila': 1500,
-        '400 - Bolso': 1500,
-        '700 - Carrito': 3000,
-        '01000 - Bolsa Grande': 1000,
-        '2000 - Bicicleta': 4000,
-        '800 - Otros': 2000,
-        '900 - Día Adicional': 2000,
-        '200 - Matutero': 3000,
-        '03000 - Televisor': 5000,
-        '600 - Caja': 2000,
-        '300 - Fardo o Saco': 3000
+        '100 - Maleta': 1000,
+        '500 - Mochila': 1000,
+        '400 - Bolso': 1000,
+        '700 - Carrito': 1000,
+        '01000 - Bolsa Grande': 2000,
+        '02000 - Bicicleta': 4000,
+        '800 - Otros': 1000,
+        '900 - Día Adicional': 1000,
+        '200 - Matutero': 1000,
+        '03000 - Televisor': 4000,
+        '600 - Caja': 1000,
+        '300 - Fardo o Saco': 1000
       };
-      const dailyPrice = (prices[ticket.luggageType] || 2000) * ticket.pieces;
+      const dailyPrice = (prices[ticket.luggageType] || 1000) * ticket.pieces;
       const totalAmount = dailyPrice * daysStayed;
       const additionalFee = Math.max(0, totalAmount - ticket.fee);
 

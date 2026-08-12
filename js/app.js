@@ -539,7 +539,7 @@ function resetPOSForm() {
   // Set first type as selected
   const defaultOption = document.querySelector('.type-option');
   if (defaultOption) {
-    selectLuggageType('100 - Maleta', 2000, defaultOption);
+    selectLuggageType('100 - Maleta', 1000, defaultOption);
   }
 
   // Receipt box
