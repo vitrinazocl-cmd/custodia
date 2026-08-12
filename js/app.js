@@ -216,132 +216,137 @@ function calculateCustomFee() {
 }
 
 async function generateTicket() {
-  const clientId = document.getElementById('client-search-id').value.trim();
-  const clientName = document.getElementById('client-name').value.trim();
-  const clientPhone = document.getElementById('client-phone').value.trim();
-  const clientEmail = document.getElementById('client-email').value.trim();
-  const luggagePieces = document.getElementById('luggage-pieces').value;
-  const luggageFee = document.getElementById('luggage-fee').value;
-  const luggageNotes = document.getElementById('luggage-notes').value.trim();
+  try {
+    const clientId = document.getElementById('client-search-id').value.trim();
+    const clientName = document.getElementById('client-name').value.trim();
+    const clientPhone = document.getElementById('client-phone').value.trim();
+    const clientEmail = document.getElementById('client-email').value.trim();
+    const luggagePieces = document.getElementById('luggage-pieces').value;
+    const luggageFee = document.getElementById('luggage-fee').value;
+    const luggageNotes = document.getElementById('luggage-notes').value.trim();
 
-  // Validate inputs
-  if (!clientId || !clientName || !clientPhone) {
-    alert('Por favor complete los datos del cliente (RUT/Pasaporte, Nombre y Teléfono).');
-    return;
-  }
-
-  const clientData = {
-    id: clientId,
-    name: clientName,
-    phone: clientPhone,
-    email: clientEmail
-  };
-
-  const luggageData = {
-    type: selectedLuggage.type,
-    pieces: luggagePieces,
-    fee: luggageFee,
-    notes: luggageNotes
-  };
-
-  // Save to DB (returns created ticket containing code, tagCode, and dates)
-  const ticket = DB.createTicket(clientData, luggageData);
-  
-  // Emite la Boleta Tributaria de forma automática
-  const billingResult = await emitirBoletaDTE(ticket);
-  if (billingResult && billingResult.success) {
-    ticket.boleta = billingResult.boleta;
-    
-    // Guardamos la boleta dentro del arreglo de tickets en LocalStorage
-    const allTickets = DB.getTickets();
-    const idx = allTickets.findIndex(t => t.code === ticket.code);
-    if (idx !== -1) {
-      allTickets[idx] = ticket;
-      localStorage.setItem('luggage_tickets', JSON.stringify(allTickets));
+    // Validate inputs
+    if (!clientId || !clientName || !clientPhone) {
+      alert('Por favor complete los datos del cliente (RUT/Pasaporte, Nombre y Teléfono).');
+      return;
     }
+
+    const clientData = {
+      id: clientId,
+      name: clientName,
+      phone: clientPhone,
+      email: clientEmail
+    };
+
+    const luggageData = {
+      type: selectedLuggage.type,
+      pieces: luggagePieces,
+      fee: luggageFee,
+      notes: luggageNotes
+    };
+
+    // Save to DB (returns created ticket containing code, tagCode, and dates)
+    const ticket = DB.createTicket(clientData, luggageData);
     
-    if (billingResult.error) {
-      console.warn("Error en la conexión a la API del SII. La boleta se emitió de forma local de contingencia: ", billingResult.error);
+    // Emite la Boleta Tributaria de forma automática
+    const billingResult = await emitirBoletaDTE(ticket);
+    if (billingResult && billingResult.success) {
+      ticket.boleta = billingResult.boleta;
+      
+      // Guardamos la boleta dentro del arreglo de tickets en LocalStorage
+      const allTickets = DB.getTickets();
+      const idx = allTickets.findIndex(t => t.code === ticket.code);
+      if (idx !== -1) {
+        allTickets[idx] = ticket;
+        localStorage.setItem('luggage_tickets', JSON.stringify(allTickets));
+      }
+      
+      if (billingResult.error) {
+        console.warn("Error en la conexión a la API del SII. La boleta se emitió de forma local de contingencia: ", billingResult.error);
+      }
     }
+
+    activeCreatedTicket = ticket;
+
+    // Show ticket preview card
+    document.getElementById('no-ticket-placeholder').style.display = 'none';
+    document.getElementById('receipt-preview-toggle').style.display = 'flex';
+    const receiptCard = document.getElementById('printable-receipt-content');
+    receiptCard.style.display = 'block'; // Make visible
+    
+    // Por defecto mostrar Comprobante Interno
+    setReceiptFormat('internal');
+
+    // Fill Client Copy nodes
+    document.getElementById('ticket-preview-barcode').innerText = ticket.code;
+    document.getElementById('ticket-preview-code').innerText = ticket.code;
+    document.getElementById('ticket-preview-rut').innerText = ticket.client.id;
+    document.getElementById('ticket-preview-name').innerText = ticket.client.name;
+    document.getElementById('ticket-preview-phone').innerText = ticket.client.phone;
+    document.getElementById('ticket-preview-type').innerText = ticket.luggageType;
+    document.getElementById('ticket-preview-pieces').innerText = ticket.pieces;
+    
+    const dateObj = new Date(ticket.dateIn);
+    const formattedDate = dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    
+    document.getElementById('ticket-preview-date-in').innerText = formattedDate;
+    document.getElementById('ticket-preview-shift').innerText = ticket.shift;
+    document.getElementById('ticket-preview-notes').innerText = ticket.notes || 'Ninguna';
+    document.getElementById('ticket-preview-total').innerText = '$' + parseFloat(ticket.fee).toLocaleString('es-CL');
+
+    // Fill Cashier Copy nodes
+    document.getElementById('ticket-preview-barcode-cashier').innerText = ticket.code;
+    document.getElementById('ticket-preview-code-cashier').innerText = ticket.code;
+    document.getElementById('ticket-preview-rut-cashier').innerText = ticket.client.id;
+    document.getElementById('ticket-preview-name-cashier').innerText = ticket.client.name;
+    document.getElementById('ticket-preview-phone-cashier').innerText = ticket.client.phone;
+    document.getElementById('ticket-preview-type-cashier').innerText = ticket.luggageType;
+    document.getElementById('ticket-preview-pieces-cashier').innerText = ticket.pieces;
+    document.getElementById('ticket-preview-date-in-cashier').innerText = formattedDate;
+    document.getElementById('ticket-preview-shift-cashier').innerText = ticket.shift;
+    document.getElementById('ticket-preview-total-cashier').innerText = '$' + parseFloat(ticket.fee).toLocaleString('es-CL');
+    
+    // Fill suitcase tag elements (drawn format)
+    document.getElementById('ticket-preview-tag-code').innerText = ticket.tagCode || '-';
+    document.getElementById('ticket-preview-tag-name').innerText = ticket.client.name;
+    document.getElementById('ticket-preview-tag-rut').innerText = ticket.client.id;
+
+    // Llenar datos de la Boleta SII
+    if (ticket.boleta) {
+      const b = ticket.boleta;
+      document.getElementById('sii-preview-rut-box').innerText = b.rutEmisor;
+      document.getElementById('sii-preview-folio').innerText = String(b.folio).padStart(6, '0');
+      document.getElementById('sii-preview-comuna-sii').innerText = b.comuna;
+      document.getElementById('sii-preview-razon').innerText = b.razonSocial;
+      document.getElementById('sii-preview-giro').innerText = b.giro;
+      document.getElementById('sii-preview-direccion').innerText = b.direccion;
+      document.getElementById('sii-preview-sucursal').innerText = b.sucursal;
+      document.getElementById('sii-preview-ciudad').innerText = b.ciudad;
+      document.getElementById('sii-preview-fecha').innerText = formattedDate;
+      document.getElementById('sii-preview-rut-receptor').innerText = ticket.client.id;
+      document.getElementById('sii-preview-nombre-receptor').innerText = ticket.client.name;
+      document.getElementById('sii-preview-email-receptor').innerText = ticket.client.email || 'No informado';
+      document.getElementById('sii-preview-codigo-ticket').innerText = ticket.code;
+      
+      document.getElementById('sii-preview-item-desc').innerText = `CUSTODIA DE EQUIPAJE (${ticket.luggageType})`;
+      document.getElementById('sii-preview-item-qty').innerText = ticket.pieces;
+      document.getElementById('sii-preview-item-total').innerText = '$' + parseFloat(b.total).toLocaleString('es-CL');
+      
+      document.getElementById('sii-preview-neto').innerText = '$' + b.net.toLocaleString('es-CL');
+      document.getElementById('sii-preview-iva').innerText = '$' + b.iva.toLocaleString('es-CL');
+      document.getElementById('sii-preview-total').innerText = '$' + b.total.toLocaleString('es-CL');
+      
+      document.getElementById('sii-ted-barcode-svg').innerHTML = b.barcodeSVG;
+    }
+
+    // Trigger sound effect or visual confirmation
+    DB.logSystemEvent('Emisión Ticket', `Se generó ticket interno ${ticket.code} para cliente ${clientName} (${clientId}) por un monto de $${ticket.fee}.`);
+    updateDashboard();
+    syncERPFoliosUI();
+  } catch (error) {
+    console.error("Error al generar el ticket:", error);
+    alert("Error crítico al generar el ticket: " + error.message + "\n\nDetalles del error: " + error.stack);
   }
-
-  activeCreatedTicket = ticket;
-
-  // Show ticket preview card
-  document.getElementById('no-ticket-placeholder').style.display = 'none';
-  document.getElementById('receipt-preview-toggle').style.display = 'flex';
-  const receiptCard = document.getElementById('printable-receipt-content');
-  receiptCard.style.display = 'block'; // Make visible
-  
-  // Por defecto mostrar Comprobante Interno
-  setReceiptFormat('internal');
-
-  // Fill Client Copy nodes
-  document.getElementById('ticket-preview-barcode').innerText = ticket.code;
-  document.getElementById('ticket-preview-code').innerText = ticket.code;
-  document.getElementById('ticket-preview-rut').innerText = ticket.client.id;
-  document.getElementById('ticket-preview-name').innerText = ticket.client.name;
-  document.getElementById('ticket-preview-phone').innerText = ticket.client.phone;
-  document.getElementById('ticket-preview-type').innerText = ticket.luggageType;
-  document.getElementById('ticket-preview-pieces').innerText = ticket.pieces;
-  
-  const dateObj = new Date(ticket.dateIn);
-  const formattedDate = dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-  
-  document.getElementById('ticket-preview-date-in').innerText = formattedDate;
-  document.getElementById('ticket-preview-shift').innerText = ticket.shift;
-  document.getElementById('ticket-preview-notes').innerText = ticket.notes || 'Ninguna';
-  document.getElementById('ticket-preview-total').innerText = '$' + parseFloat(ticket.fee).toLocaleString('es-CL');
-
-  // Fill Cashier Copy nodes
-  document.getElementById('ticket-preview-barcode-cashier').innerText = ticket.code;
-  document.getElementById('ticket-preview-code-cashier').innerText = ticket.code;
-  document.getElementById('ticket-preview-rut-cashier').innerText = ticket.client.id;
-  document.getElementById('ticket-preview-name-cashier').innerText = ticket.client.name;
-  document.getElementById('ticket-preview-phone-cashier').innerText = ticket.client.phone;
-  document.getElementById('ticket-preview-type-cashier').innerText = ticket.luggageType;
-  document.getElementById('ticket-preview-pieces-cashier').innerText = ticket.pieces;
-  document.getElementById('ticket-preview-date-in-cashier').innerText = formattedDate;
-  document.getElementById('ticket-preview-shift-cashier').innerText = ticket.shift;
-  document.getElementById('ticket-preview-total-cashier').innerText = '$' + parseFloat(ticket.fee).toLocaleString('es-CL');
-  
-  // Fill suitcase tag elements (drawn format)
-  document.getElementById('ticket-preview-tag-code').innerText = ticket.tagCode || '-';
-  document.getElementById('ticket-preview-tag-name').innerText = ticket.client.name;
-  document.getElementById('ticket-preview-tag-rut').innerText = ticket.client.id;
-
-  // Llenar datos de la Boleta SII
-  if (ticket.boleta) {
-    const b = ticket.boleta;
-    document.getElementById('sii-preview-rut-box').innerText = b.rutEmisor;
-    document.getElementById('sii-preview-folio').innerText = String(b.folio).padStart(6, '0');
-    document.getElementById('sii-preview-comuna-sii').innerText = b.comuna;
-    document.getElementById('sii-preview-razon').innerText = b.razonSocial;
-    document.getElementById('sii-preview-giro').innerText = b.giro;
-    document.getElementById('sii-preview-direccion').innerText = b.direccion;
-    document.getElementById('sii-preview-sucursal').innerText = b.sucursal;
-    document.getElementById('sii-preview-ciudad').innerText = b.ciudad;
-    document.getElementById('sii-preview-fecha').innerText = formattedDate;
-    document.getElementById('sii-preview-rut-receptor').innerText = ticket.client.id;
-    document.getElementById('sii-preview-nombre-receptor').innerText = ticket.client.name;
-    document.getElementById('sii-preview-email-receptor').innerText = ticket.client.email || 'No informado';
-    document.getElementById('sii-preview-codigo-ticket').innerText = ticket.code;
-    
-    document.getElementById('sii-preview-item-desc').innerText = `CUSTODIA DE EQUIPAJE (${ticket.luggageType})`;
-    document.getElementById('sii-preview-item-qty').innerText = ticket.pieces;
-    document.getElementById('sii-preview-item-total').innerText = '$' + parseFloat(b.total).toLocaleString('es-CL');
-    
-    document.getElementById('sii-preview-neto').innerText = '$' + b.net.toLocaleString('es-CL');
-    document.getElementById('sii-preview-iva').innerText = '$' + b.iva.toLocaleString('es-CL');
-    document.getElementById('sii-preview-total').innerText = '$' + b.total.toLocaleString('es-CL');
-    
-    document.getElementById('sii-ted-barcode-svg').innerHTML = b.barcodeSVG;
-  }
-
-  // Trigger sound effect or visual confirmation
-  DB.logSystemEvent('Emisión Ticket', `Se generó ticket interno ${ticket.code} para cliente ${clientName} (${clientId}) por un monto de $${ticket.fee}.`);
-  updateDashboard();
-  syncERPFoliosUI();
 }
 
 function sendTicketWhatsApp() {
@@ -1339,6 +1344,7 @@ function lookupClientPortalTicket() {
     return;
   }
 
+  const tickets = DB.getTickets();
   const cleanSearch = searchCode.replace(/\s+/g, '').toUpperCase();
   const foundTicket = tickets.find(t => 
     t.code.toUpperCase() === searchCode.toUpperCase() ||

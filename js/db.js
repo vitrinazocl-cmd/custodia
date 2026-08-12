@@ -394,9 +394,8 @@ const DB = (() => {
       return folios;
     },
 
-    // SII API Integration Settings
     getAPISettings() {
-      return loadData('sii_api_settings', {
+      const defaults = {
         provider: 'Simulador', // 'Simulador', 'Haulmer', 'LibreDTE'
         apiKey: '',
         rutEmisor: '76.543.210-K',
@@ -408,7 +407,9 @@ const DB = (() => {
         acteco: '525130',
         sucursal: 'Terminal Santiago',
         entorno: 'certificacion'
-      });
+      };
+      const stored = loadData('sii_api_settings', {});
+      return { ...defaults, ...stored };
     },
 
     saveAPISettings(settings) {
