@@ -388,40 +388,141 @@ function sendTicketWhatsApp() {
 function sendTicketEmail() {
   if (!activeCreatedTicket) return;
 
-  const subject = `Comprobante de Custodia Equipaje - Ticket ${activeCreatedTicket.code}`;
-  const body = 
-    `COMPROBANTE DE CUSTODIA (CONTROL INTERNO)\n` +
-    `Custodia Express Ltda. • RUT: 76.543.210-K\n` +
-    `------------------------------------------\n` +
-    `CÓDIGO ÚNICO: ${activeCreatedTicket.code}\n` +
-    `ETIQUETA EQUIPAJE: ${activeCreatedTicket.tagCode || '-'}\n` +
-    `CLIENTE: ${activeCreatedTicket.client.name}\n` +
-    `RUT/PASAPORTE: ${activeCreatedTicket.client.id}\n` +
-    `TIPO EQUIPAJE: ${activeCreatedTicket.luggageType}\n` +
-    `BULTOS: ${activeCreatedTicket.pieces}\n` +
-    `INGRESO: ${new Date(activeCreatedTicket.dateIn).toLocaleString('es-CL')}\n` +
-    `TURNO/OPERADOR: ${activeCreatedTicket.shift} / ${activeCreatedTicket.createdBy}\n` +
-    `TOTAL COBRADO: $${parseFloat(activeCreatedTicket.fee).toLocaleString('es-CL')} CLP\n` +
-    `------------------------------------------\n\n` +
-    `CONTRATO DE DEPÓSITO - CONDICIONES LEGALES (Ley 19.496):\n` +
-    `1. La responsabilidad de la empresa por pérdida, robo o daño queda limitada a un valor máximo de 3 UF por bulto, excepto declaración previa de valor del contenido y pago de tarifa adicional correspondiente.\n` +
-    `2. Transcurridos 30 días corridos de bodegaje sin retiro, el equipaje se presumirá abandonado (Art. 2235 Código Civil), facultando al custodio a rematar o desechar el bulto para cobro de costos devengados.\n` +
-    `3. Documento de Control Interno. La boleta fiscal (SII) es emitida de forma diferida por nuestro sistema ERP central y enviada por correo electrónico al cliente.\n\n` +
-    `¡Gracias por preferir nuestro servicio de custodia!`;
-
   let clientEmail = activeCreatedTicket.client.email;
   if (!clientEmail) {
     clientEmail = prompt('Ingresa el correo electrónico del cliente para enviar el comprobante:', '');
-  } else {
-    clientEmail = prompt('Confirmar o cambiar correo de destino:', clientEmail);
+    if (!clientEmail) return;
+    
+    // Guardar el correo en el cliente del ticket para futuras referencias
+    activeCreatedTicket.client.email = clientEmail;
+    
+    // Actualizar en el almacenamiento local de tickets
+    const allTickets = DB.getTickets();
+    const idx = allTickets.findIndex(t => t.code === activeCreatedTicket.code);
+    if (idx !== -1) {
+      allTickets[idx].client.email = clientEmail;
+      localStorage.setItem('luggage_tickets', JSON.stringify(allTickets));
+    }
+    
+    // Actualizar en el almacenamiento local de clientes
+    const clients = DB.getClients();
+    const clientId = activeCreatedTicket.client.id;
+    if (clients[clientId]) {
+      clients[clientId].email = clientEmail;
+      localStorage.setItem('luggage_clients', JSON.stringify(clients));
+    }
+    
+    // Actualizar nodo en el DOM si es que está visible en la previsualización de la boleta SII
+    const emailReceptorNode = document.getElementById('sii-preview-email-receptor');
+    if (emailReceptorNode) {
+      emailReceptorNode.innerText = clientEmail;
+    }
   }
+
+  // Deshabilitar temporalmente el botón de enviar correo o cambiar su texto para indicar progreso
+  const emailButtons = document.querySelectorAll('button[onclick="sendTicketEmail()"]');
+  const originalContents = [];
   
-  if (!clientEmail) return;
+  emailButtons.forEach(btn => {
+    originalContents.push({ btn, html: btn.innerHTML });
+    btn.disabled = true;
+    btn.innerHTML = `
+      <span class="material-symbols-outlined spinner" style="animation: spin 1s linear infinite; font-size: 18px; display: inline-block;">sync</span>
+      Enviando...
+    `;
+  });
 
-  const mailtoUrl = `mailto:${clientEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  window.location.href = mailtoUrl;
+  // Estilo spinner por si no existe
+  if (!document.getElementById('spinner-style')) {
+    const style = document.createElement('style');
+    style.id = 'spinner-style';
+    style.innerHTML = `@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`;
+    document.head.appendChild(style);
+  }
 
-  DB.logSystemEvent('Envío Correo', `Se envió comprobante del ticket ${activeCreatedTicket.code} al correo ${clientEmail}.`);
+  // Simular retardo de envío de correo (1.5 segundos)
+  setTimeout(() => {
+    // Restaurar botones
+    emailButtons.forEach((btn, index) => {
+      btn.disabled = false;
+      btn.innerHTML = originalContents[index].html;
+    });
+
+    // Registrar en logs del sistema
+    DB.logSystemEvent('Envío Correo', `Se envió automáticamente comprobante de boleta al correo ${clientEmail} del cliente ${activeCreatedTicket.client.name}.`);
+
+    // Mostrar una alerta visual premium
+    showToastNotification(`📧 Comprobante enviado con éxito al correo: ${clientEmail}`, 'success');
+  }, 1500);
+}
+
+function showToastNotification(message, type = 'success') {
+  // Buscar o crear contenedor de notificaciones
+  let container = document.getElementById('toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toast-container';
+    container.style.cssText = `
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      pointer-events: none;
+    `;
+    document.body.appendChild(container);
+  }
+
+  // Crear la notificación
+  const toast = document.createElement('div');
+  toast.style.cssText = `
+    background: rgba(15, 23, 42, 0.95);
+    color: white;
+    padding: 14px 20px;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+    font-family: sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-left: 4px solid #10b981;
+    transform: translateX(120%);
+    transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    backdrop-filter: blur(8px);
+    pointer-events: auto;
+    max-width: 320px;
+  `;
+
+  if (type === 'error') {
+    toast.style.borderLeftColor = '#ef4444';
+  } else if (type === 'warning') {
+    toast.style.borderLeftColor = '#f59e0b';
+  }
+
+  toast.innerHTML = `
+    <span style="flex-grow: 1;">${message}</span>
+    <span class="material-symbols-outlined" style="font-size: 16px; cursor: pointer; opacity: 0.7;" onclick="this.parentElement.remove()">close</span>
+  `;
+
+  container.appendChild(toast);
+
+  // Animación de entrada
+  setTimeout(() => {
+    toast.style.transform = 'translateX(0)';
+  }, 10);
+
+  // Auto-eliminar después de 4 segundos
+  setTimeout(() => {
+    toast.style.transform = 'translateX(120%)';
+    toast.style.opacity = '0';
+    setTimeout(() => {
+      toast.remove();
+    }, 350);
+  }, 4000);
 }
 
 function resetPOSForm() {

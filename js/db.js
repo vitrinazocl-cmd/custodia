@@ -73,6 +73,7 @@ const DB = (() => {
         id: client.id,       // RUT or Passport
         name: client.name,
         phone: client.phone,
+        email: client.email || '',
         updatedAt: new Date().toISOString()
       };
       saveData('luggage_clients', clients);
@@ -173,7 +174,8 @@ const DB = (() => {
         client: {
           id: clientData.id,
           name: clientData.name,
-          phone: clientData.phone
+          phone: clientData.phone,
+          email: clientData.email || ''
         },
         luggageType: luggageData.type, // 'Mochila', 'Maleta Mediana', 'Maleta Grande', 'Especial'
         pieces: parseInt(luggageData.pieces) || 1,
