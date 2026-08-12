@@ -1228,6 +1228,51 @@ body.theme-night .login-card {
   }
 }
 
+/* Tab & Action Row classes for layouts */
+.receipt-action-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.receipt-toggle-row {
+  display: flex;
+  margin-bottom: 16px;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+}
+
+/* Optimization for standard mobile viewports (e.g. screen width <= 480px) */
+@media (max-width: 480px) {
+  .action-bar {
+    flex-direction: column-reverse;
+    width: 100%;
+  }
+  
+  .action-bar button,
+  .action-bar a {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .receipt-action-row,
+  .receipt-toggle-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .login-card {
+    padding: 24px 16px !important;
+    border-radius: 16px !important;
+  }
+
+  .login-quick-roles {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}
+
 /* Optimization for extremely narrow mobile viewports (e.g. iPhone SE, screen width <= 400px) */
 @media (max-width: 400px) {
   .view-container {

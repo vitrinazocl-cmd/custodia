@@ -448,7 +448,7 @@
               </div>
 
               <!-- Pestañas de Alternancia de Ticket (Comprobante vs Boleta SII) -->
-              <div id="receipt-preview-toggle" style="display: none; margin-bottom: 16px; justify-content: center; gap: 8px;">
+              <div id="receipt-preview-toggle" class="receipt-toggle-row" style="display: none;">
                 <button type="button" id="tab-btn-internal" class="btn-primary" onclick="setReceiptFormat('internal')" style="font-size: 11px; padding: 8px 12px; flex: 1; font-weight: bold; border-radius: 8px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
                   <span class="material-symbols-outlined" style="font-size: 16px;">receipt</span>
                   Comprobante Interno
@@ -681,7 +681,7 @@
                     Imprimir Boleta SII y Enviar WhatsApp
                   </button>
                   
-                  <div style="display: flex; gap: 8px; width: 100%;">
+                  <div class="receipt-action-row">
                     <button type="button" class="btn-secondary" onclick="sendTicketEmail()" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; font-size: 12px; border: 1px solid var(--border-color); background: transparent; color: var(--text-secondary); cursor: pointer; border-radius: var(--btn-radius);">
                       <span class="material-symbols-outlined" style="font-size: 18px;">mail</span>
                       Enviar Correo
