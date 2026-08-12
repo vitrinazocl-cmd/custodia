@@ -674,25 +674,20 @@
                 </div>
               </div>
               <div class="receipt-footer" style="text-align: center; margin-top: 12px;">
-                <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 12px;">Documento de Control Interno.<br>Conserve este ticket para el retiro.</p>
+                <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 12px;">Comprobante de Control Interno / Boleta Tributaria</p>
                 <div class="receipt-actions" style="display: flex; flex-direction: column; gap: 8px;">
+                  <button type="button" class="btn-primary" onclick="printBoletaAndSendWhatsApp()" style="width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; font-size: 13px; font-weight: bold; background-color: var(--primary-color); color: white; border: none; border-radius: var(--btn-radius); cursor: pointer; transition: all var(--transition-fast);">
+                    <span class="material-symbols-outlined">print</span>
+                    Imprimir Boleta SII y Enviar WhatsApp
+                  </button>
+                  
                   <div style="display: flex; gap: 8px; width: 100%;">
-                    <button class="btn-wsp" id="btn-send-whatsapp" onclick="sendTicketWhatsApp()" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; font-size: 13px;">
-                      <span class="material-symbols-outlined">share</span>
-                      Enviar WhatsApp
-                    </button>
-                    <button class="btn-primary" id="btn-send-email" onclick="sendTicketEmail()" style="flex: 1; background-color: var(--primary-color); color: white; border: none; padding: 10px; border-radius: var(--btn-radius); font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: all var(--transition-fast); font-size: 13px;">
-                      <span class="material-symbols-outlined">mail</span>
+                    <button type="button" class="btn-secondary" onclick="sendTicketEmail()" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; font-size: 12px; border: 1px solid var(--border-color); background: transparent; color: var(--text-secondary); cursor: pointer; border-radius: var(--btn-radius);">
+                      <span class="material-symbols-outlined" style="font-size: 18px;">mail</span>
                       Enviar Correo
                     </button>
-                  </div>
-                  <div style="display: flex; gap: 8px; width: 100%;">
-                    <button class="btn-secondary" onclick="window.print()" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; font-size: 13px;">
-                      <span class="material-symbols-outlined">print</span>
-                      Imprimir Boletas
-                    </button>
-                    <button class="btn-secondary" onclick="resetPOSForm()" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; font-size: 13px;">
-                      <span class="material-symbols-outlined">add_circle</span>
+                    <button type="button" class="btn-secondary" onclick="resetPOSForm()" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; font-size: 12px; border: 1px solid var(--border-color); background: transparent; color: var(--text-secondary); cursor: pointer; border-radius: var(--btn-radius);">
+                      <span class="material-symbols-outlined" style="font-size: 18px;">add_circle</span>
                       Nuevo Registro
                     </button>
                   </div>

@@ -274,8 +274,8 @@ async function generateTicket() {
     const receiptCard = document.getElementById('printable-receipt-content');
     receiptCard.style.display = 'block'; // Make visible
     
-    // Por defecto mostrar Comprobante Interno
-    setReceiptFormat('internal');
+    // Por defecto mostrar Boleta SII
+    setReceiptFormat('sii');
 
     // Fill Client Copy nodes
     document.getElementById('ticket-preview-barcode').innerText = ticket.code;
@@ -922,6 +922,19 @@ function setReceiptFormat(format) {
       tabInternal.style.color = 'white';
     }
   }
+}
+
+function printBoletaAndSendWhatsApp() {
+  if (!activeCreatedTicket) return;
+
+  // 1. Forzar formato Boleta SII para la impresión
+  setReceiptFormat('sii');
+
+  // 2. Abrir el cuadro de diálogo de impresión del navegador
+  window.print();
+
+  // 3. Enviar automáticamente el ticket de control interno por WhatsApp al cliente
+  sendTicketWhatsApp();
 }
 
 function generateTEDBarcodeSVG(rutEmisor, folio, total, fecha) {
