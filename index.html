@@ -444,140 +444,233 @@
             <div class="pos-ticket-preview">
               <div id="no-ticket-placeholder" style="text-align: center; color: var(--text-tertiary); padding: 40px 20px;">
                 <span class="material-symbols-outlined" style="font-size: 64px; margin-bottom: 12px;">qr_code_2</span>
-                <p>Ingresa un cliente para comenzar               <div id="printable-receipt-content" class="ticket-receipt-card" style="display: none; background-color: #fff !important; color: #000 !important; font-family: monospace; padding: 16px; border: 1px solid #ccc; max-width: 350px; margin: 0 auto; box-shadow: none;">
+                <p>Ingresa un cliente para comenzar</p>
+              </div>
+
+              <!-- Pestañas de Alternancia de Ticket (Comprobante vs Boleta SII) -->
+              <div id="receipt-preview-toggle" style="display: none; margin-bottom: 16px; justify-content: center; gap: 8px;">
+                <button type="button" id="tab-btn-internal" class="btn-primary" onclick="setReceiptFormat('internal')" style="font-size: 11px; padding: 8px 12px; flex: 1; font-weight: bold; border-radius: 8px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                  <span class="material-symbols-outlined" style="font-size: 16px;">receipt</span>
+                  Comprobante Interno
+                </button>
+                <button type="button" id="tab-btn-sii" class="btn-secondary" onclick="setReceiptFormat('sii')" style="font-size: 11px; padding: 8px 12px; flex: 1; font-weight: bold; border-radius: 8px; border: 1px solid var(--border-color); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                  <span class="material-symbols-outlined" style="font-size: 16px;">gavel</span>
+                  Boleta SII
+                </button>
+              </div>
+
+              <div id="printable-receipt-content" class="ticket-receipt-card" style="display: none; background-color: #fff !important; color: #000 !important; font-family: monospace; padding: 16px; border: 1px solid #ccc; max-width: 350px; margin: 0 auto; box-shadow: none;">
                 
-                <!-- ================= COPIA CLIENTE ================= -->
-                <div class="receipt-print-section client-copy" style="color: #000 !important;">
-                  <div class="receipt-header" style="text-align: center; margin-bottom: 12px;">
-                    <span class="material-symbols-outlined" style="font-size: 32px; color: var(--primary-color) !important;">receipt_long</span>
-                    <h4 style="margin: 4px 0; font-size: 14px; font-weight: bold; color: #000 !important;">COMPROBANTE DE CUSTODIA</h4>
-                    <p style="font-size: 11px; font-weight: bold; margin: 2px 0; letter-spacing: 1px; color: #000 !important;">[ COPIA CLIENTE ]</p>
-                    <p style="font-size: 9px; color: #555 !important; margin: 2px 0;">Custodia Express Ltda. • RUT: 76.543.210-K</p>
-                    <p style="font-size: 9px; color: #555 !important; margin: 2px 0;">Fono: +56 9 5149 6392 • Terminal Santiago</p>
-                    <div class="receipt-barcode" id="ticket-preview-barcode" style="font-size: 12px; font-weight: bold; margin-top: 6px; color: #000 !important; letter-spacing: 1px;">EQ-0000</div>
+                <!-- ================= VISTA COMPROBANTE INTERNO ================= -->
+                <div id="receipt-section-internal">
+                  <!-- ================= COPIA CLIENTE ================= -->
+                  <div class="receipt-print-section client-copy" style="color: #000 !important;">
+                    <div class="receipt-header" style="text-align: center; margin-bottom: 12px;">
+                      <span class="material-symbols-outlined" style="font-size: 32px; color: var(--primary-color) !important;">receipt_long</span>
+                      <h4 style="margin: 4px 0; font-size: 14px; font-weight: bold; color: #000 !important;">COMPROBANTE DE CUSTODIA</h4>
+                      <p style="font-size: 11px; font-weight: bold; margin: 2px 0; letter-spacing: 1px; color: #000 !important;">[ COPIA CLIENTE ]</p>
+                      <p style="font-size: 9px; color: #555 !important; margin: 2px 0;">Custodia Express Ltda. • RUT: 76.543.210-K</p>
+                      <p style="font-size: 9px; color: #555 !important; margin: 2px 0;">Fono: +56 9 5149 6392 • Terminal Santiago</p>
+                      <div class="receipt-barcode" id="ticket-preview-barcode" style="font-size: 12px; font-weight: bold; margin-top: 6px; color: #000 !important; letter-spacing: 1px;">EQ-0000</div>
+                    </div>
+                    <div class="receipt-body" style="font-size: 11px; line-height: 1.4; color: #000 !important;">
+                      <div class="receipt-row" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <span class="label" style="font-weight: bold; color: #555 !important;">Código Único:</span>
+                        <span class="value" id="ticket-preview-code" style="font-weight: bold; color: #000 !important;">EQ-0000</span>
+                      </div>
+                      <div class="receipt-row" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <span class="label" style="color: #555 !important;">RUT/Pasaporte:</span>
+                        <span class="value" id="ticket-preview-rut" style="color: #000 !important;">-</span>
+                      </div>
+                      <div class="receipt-row" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <span class="label" style="color: #555 !important;">Cliente:</span>
+                        <span class="value" id="ticket-preview-name" style="font-weight: bold; color: #000 !important;">-</span>
+                      </div>
+                      <div class="receipt-row" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <span class="label" style="color: #555 !important;">Teléfono:</span>
+                        <span class="value" id="ticket-preview-phone" style="color: #000 !important;">-</span>
+                      </div>
+                      <hr style="border: none; border-top: 1px dashed #555; margin: 8px 0;">
+                      <div class="receipt-row" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <span class="label" style="color: #555 !important;">Tipo Equipaje:</span>
+                        <span class="value" id="ticket-preview-type" style="color: #000 !important;">-</span>
+                      </div>
+                      <div class="receipt-row" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <span class="label" style="color: #555 !important;">Bultos:</span>
+                        <span class="value" id="ticket-preview-pieces" style="font-weight: bold; color: #000 !important;">-</span>
+                      </div>
+                      <div class="receipt-row" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <span class="label" style="color: #555 !important;">Ingreso:</span>
+                        <span class="value" id="ticket-preview-date-in" style="color: #000 !important;">-</span>
+                      </div>
+                      <div class="receipt-row" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <span class="label" style="color: #555 !important;">Turno/Cajero:</span>
+                        <span class="value" id="ticket-preview-shift" style="color: #000 !important;">-</span>
+                      </div>
+                      <div class="receipt-row" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <span class="label" style="color: #555 !important;">Notas:</span>
+                        <span class="value" id="ticket-preview-notes" style="font-style: italic; color: #000 !important;">-</span>
+                      </div>
+                      <hr style="border: none; border-top: 1px dashed #555; margin: 8px 0;">
+                      <div class="receipt-row total" style="display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; margin-top: 6px;">
+                        <span class="label" style="color: #000 !important;">Total Cobrado:</span>
+                        <span class="value" id="ticket-preview-total" style="color: #000 !important;">$0</span>
+                      </div>
+                    </div>
+                    
+                    <!-- Legal Compliance Clause -->
+                    <div class="receipt-legal-disclaimer" style="font-size: 8px; line-height: 1.25; text-align: justify; color: #444 !important; margin-top: 12px; border-top: 1px solid #ddd; padding-top: 8px; font-family: sans-serif;">
+                      <strong>CONTRATO DE DEPÓSITO - DECLARACIÓN DE CUMPLIMIENTO LEY N° 19.496</strong><br>
+                      1. La responsabilidad de la empresa por robo, extravío o avería de bultos queda formalmente limitada a un monto máximo equivalente a **3 UF** por equipaje, salvo que el cliente haya declarado un valor superior por escrito al ingreso y abonado la tarifa adicional correspondiente.<br>
+                      2. En conformidad al Art. 2235 del Código Civil, los bultos no retirados en el plazo máximo de **30 días corridos** se considerarán legalmente abandonados. El custodio queda expresamente facultado para proceder a su venta en remate público o desecho, a fin de compensar el bodegaje adeudado.<br>
+                      3. Este documento es un comprobante interno de recepción y control. La correspondiente boleta fiscal (electrónica SII) es emitida de forma diferida por nuestro sistema ERP central y enviada automáticamente al correo del cliente.
+                    </div>
                   </div>
-                  <div class="receipt-body" style="font-size: 11px; line-height: 1.4; color: #000 !important;">
-                    <div class="receipt-row" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                      <span class="label" style="font-weight: bold; color: #555 !important;">Código Único:</span>
-                      <span class="value" id="ticket-preview-code" style="font-weight: bold; color: #000 !important;">EQ-0000</span>
+
+                  <div class="print-cut-line" style="border-top: 2px dashed #000; margin: 24px 0; position: relative; text-align: center;">
+                    <span style="position: absolute; top: -9px; left: 50%; transform: translateX(-50%); background-color: #fff; padding: 0 8px; font-size: 9px; font-weight: bold; color: #555;">TIJERAS / CORTE CUSTODIA</span>
+                  </div>
+
+                  <!-- ================= COPIA CAJERO ================= -->
+                  <div class="receipt-print-section cashier-copy" style="color: #000 !important;">
+                    <div class="receipt-header" style="text-align: center; margin-bottom: 12px;">
+                      <h4 style="margin: 4px 0; font-size: 13px; font-weight: bold; color: #000 !important;">COMPROBANTE DE CUSTODIA</h4>
+                      <p style="font-size: 11px; font-weight: bold; margin: 2px 0; letter-spacing: 1px; color: #000 !important;">[ COPIA CAJERO / CONTROL ]</p>
+                      <p style="font-size: 9px; color: #555 !important; margin: 2px 0;">Control Interno de Efectivo • RUT: 76.543.210-K</p>
+                      <div class="receipt-barcode" id="ticket-preview-barcode-cashier" style="font-size: 11px; font-weight: bold; margin-top: 4px; color: #000 !important;">EQ-0000</div>
                     </div>
-                    <div class="receipt-row" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                      <span class="label" style="color: #555 !important;">RUT/Pasaporte:</span>
-                      <span class="value" id="ticket-preview-rut" style="color: #000 !important;">-</span>
+                    <div class="receipt-body" style="font-size: 11px; line-height: 1.4; color: #000 !important;">
+                      <div class="receipt-row" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <span class="label" style="font-weight: bold; color: #555 !important;">Código Único:</span>
+                        <span class="value" id="ticket-preview-code-cashier" style="font-weight: bold; color: #000 !important;">EQ-0000</span>
+                      </div>
+                      <div class="receipt-row" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <span class="label" style="color: #555 !important;">RUT/Pasaporte:</span>
+                        <span class="value" id="ticket-preview-rut-cashier" style="color: #000 !important;">-</span>
+                      </div>
+                      <div class="receipt-row" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <span class="label" style="color: #555 !important;">Cliente:</span>
+                        <span class="value" id="ticket-preview-name-cashier" style="font-weight: bold; color: #000 !important;">-</span>
+                      </div>
+                      <div class="receipt-row" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <span class="label" style="color: #555 !important;">Teléfono:</span>
+                        <span class="value" id="ticket-preview-phone-cashier" style="color: #000 !important;">-</span>
+                      </div>
+                      <hr style="border: none; border-top: 1px dashed #555; margin: 8px 0;">
+                      <div class="receipt-row" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <span class="label" style="color: #555 !important;">Tipo Equipaje:</span>
+                        <span class="value" id="ticket-preview-type-cashier" style="color: #000 !important;">-</span>
+                      </div>
+                      <div class="receipt-row" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <span class="label" style="color: #555 !important;">Bultos:</span>
+                        <span class="value" id="ticket-preview-pieces-cashier" style="font-weight: bold; color: #000 !important;">-</span>
+                      </div>
+                      <div class="receipt-row" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <span class="label" style="color: #555 !important;">Ingreso:</span>
+                        <span class="value" id="ticket-preview-date-in-cashier" style="color: #000 !important;">-</span>
+                      </div>
+                      <div class="receipt-row" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <span class="label" style="color: #555 !important;">Turno/Cajero:</span>
+                        <span class="value" id="ticket-preview-shift-cashier" style="color: #000 !important;">-</span>
+                      </div>
+                      <hr style="border: none; border-top: 1px dashed #555; margin: 8px 0;">
+                      <div class="receipt-row total" style="display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; margin-top: 6px;">
+                        <span class="label" style="color: #000 !important;">Monto en Caja:</span>
+                        <span class="value" id="ticket-preview-total-cashier" style="color: #000 !important;">$0</span>
+                      </div>
                     </div>
-                    <div class="receipt-row" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                      <span class="label" style="color: #555 !important;">Cliente:</span>
-                      <span class="value" id="ticket-preview-name" style="font-weight: bold; color: #000 !important;">-</span>
-                    </div>
-                    <div class="receipt-row" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                      <span class="label" style="color: #555 !important;">Teléfono:</span>
-                      <span class="value" id="ticket-preview-phone" style="color: #000 !important;">-</span>
-                    </div>
-                    <hr style="border: none; border-top: 1px dashed #555; margin: 8px 0;">
-                    <div class="receipt-row" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                      <span class="label" style="color: #555 !important;">Tipo Equipaje:</span>
-                      <span class="value" id="ticket-preview-type" style="color: #000 !important;">-</span>
-                    </div>
-                    <div class="receipt-row" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                      <span class="label" style="color: #555 !important;">Bultos:</span>
-                      <span class="value" id="ticket-preview-pieces" style="font-weight: bold; color: #000 !important;">-</span>
-                    </div>
-                    <div class="receipt-row" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                      <span class="label" style="color: #555 !important;">Ingreso:</span>
-                      <span class="value" id="ticket-preview-date-in" style="color: #000 !important;">-</span>
-                    </div>
-                    <div class="receipt-row" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                      <span class="label" style="color: #555 !important;">Turno/Cajero:</span>
-                      <span class="value" id="ticket-preview-shift" style="color: #000 !important;">-</span>
-                    </div>
-                    <div class="receipt-row" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                      <span class="label" style="color: #555 !important;">Notas:</span>
-                      <span class="value" id="ticket-preview-notes" style="font-style: italic; color: #000 !important;">-</span>
-                    </div>
-                    <hr style="border: none; border-top: 1px dashed #555; margin: 8px 0;">
-                    <div class="receipt-row total" style="display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; margin-top: 6px;">
-                      <span class="label" style="color: #000 !important;">Total Cobrado:</span>
-                      <span class="value" id="ticket-preview-total" style="color: #000 !important;">$0</span>
+                    <div style="margin-top: 25px; text-align: center;">
+                      <div style="border-top: 1px solid #000; width: 120px; margin: 0 auto 4px auto;"></div>
+                      <p style="margin: 0; font-size: 9px; color: #555;">Firma Cajero Recepcionista</p>
                     </div>
                   </div>
-                  
-                  <!-- Legal Compliance Clause -->
-                  <div class="receipt-legal-disclaimer" style="font-size: 8px; line-height: 1.25; text-align: justify; color: #444 !important; margin-top: 12px; border-top: 1px solid #ddd; padding-top: 8px; font-family: sans-serif;">
-                    <strong>CONTRATO DE DEPÓSITO - DECLARACIÓN DE CUMPLIMIENTO LEY N° 19.496</strong><br>
-                    1. La responsabilidad de la empresa por robo, extravío o avería de bultos queda formalmente limitada a un monto máximo equivalente a **3 UF** por equipaje, salvo que el cliente haya declarado un valor superior por escrito al ingreso y abonado la tarifa adicional correspondiente.<br>
-                    2. En conformidad al Art. 2235 del Código Civil, los bultos no retirados en el plazo máximo de **30 días corridos** se considerarán legalmente abandonados. El custodio queda expresamente facultado para proceder a su venta en remate público o desecho, a fin de compensar el bodegaje adeudado.<br>
-                    3. Este documento es un comprobante interno de recepción y control. La correspondiente boleta fiscal (electrónica SII) es emitida de forma diferida por nuestro sistema ERP central y enviada automáticamente al correo del cliente.
+
+                  <div class="print-cut-line" style="border-top: 2px dashed #000; margin: 24px 0; position: relative; text-align: center;">
+                    <span style="position: absolute; top: -9px; left: 50%; transform: translateX(-50%); background-color: #fff; padding: 0 8px; font-size: 9px; font-weight: bold; color: #555;">TIJERAS / ADHESIVO EQUIPAJE</span>
+                  </div>
+
+                  <!-- ================= ETIQUETA / TAG ================= -->
+                  <div class="suitcase-tag-box" style="padding: 16px 8px; text-align: center; color: #000 !important; background-color: #fff !important; border-radius: 4px; border: 2px solid #000; margin-bottom: 10px;">
+                    <p style="font-size: 10px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; margin: 0 0 4px 0; color: #000 !important;">ETIQUETA DE EQUIPAJE</p>
+                    <div id="ticket-preview-tag-code" style="font-size: 46px; font-weight: 900; margin: 4px 0; font-family: monospace; letter-spacing: 1px; line-height: 1.1; color: #000 !important;">-</div>
+                    <div id="ticket-preview-tag-name" style="font-size: 14px; font-weight: 700; text-transform: uppercase; margin: 4px 0 2px 0; font-family: sans-serif; overflow-wrap: break-word; color: #000 !important;">-</div>
+                    <div id="ticket-preview-tag-rut" style="font-size: 12px; font-family: monospace; font-weight: bold; color: #000 !important;">-</div>
                   </div>
                 </div>
 
-                <div class="print-cut-line" style="border-top: 2px dashed #000; margin: 24px 0; position: relative; text-align: center;">
-                  <span style="position: absolute; top: -9px; left: 50%; transform: translateX(-50%); background-color: #fff; padding: 0 8px; font-size: 9px; font-weight: bold; color: #555;">TIJERAS / CORTE CUSTODIA</span>
-                </div>
-
-                <!-- ================= COPIA CAJERO ================= -->
-                <div class="receipt-print-section cashier-copy" style="color: #000 !important;">
-                  <div class="receipt-header" style="text-align: center; margin-bottom: 12px;">
-                    <h4 style="margin: 4px 0; font-size: 13px; font-weight: bold; color: #000 !important;">COMPROBANTE DE CUSTODIA</h4>
-                    <p style="font-size: 11px; font-weight: bold; margin: 2px 0; letter-spacing: 1px; color: #000 !important;">[ COPIA CAJERO / CONTROL ]</p>
-                    <p style="font-size: 9px; color: #555 !important; margin: 2px 0;">Control Interno de Efectivo • RUT: 76.543.210-K</p>
-                    <div class="receipt-barcode" id="ticket-preview-barcode-cashier" style="font-size: 11px; font-weight: bold; margin-top: 4px; color: #000 !important;">EQ-0000</div>
+                <!-- ================= VISTA BOLETA ELECTRÓNICA SII ================= -->
+                <div id="receipt-section-sii" style="display: none; color: #000 !important;">
+                  <!-- Recuadro Rojo Tributario SII -->
+                  <div class="sii-box" style="border: 3px solid #d32f2f; padding: 12px 6px; text-align: center; margin-bottom: 14px; color: #d32f2f !important; font-weight: bold; line-height: 1.4; border-radius: 4px;">
+                    <div style="font-size: 14px; letter-spacing: 0.5px;">R.U.T.: <span id="sii-preview-rut-box">76.543.210-K</span></div>
+                    <div style="font-size: 13px; margin: 4px 0; letter-spacing: 0.5px;">BOLETA ELECTRÓNICA</div>
+                    <div style="font-size: 15px;">N° <span id="sii-preview-folio">000000</span></div>
                   </div>
-                  <div class="receipt-body" style="font-size: 11px; line-height: 1.4; color: #000 !important;">
-                    <div class="receipt-row" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                      <span class="label" style="font-weight: bold; color: #555 !important;">Código Único:</span>
-                      <span class="value" id="ticket-preview-code-cashier" style="font-weight: bold; color: #000 !important;">EQ-0000</span>
+                  <div style="text-align: center; font-size: 9px; font-weight: bold; margin-top: -8px; margin-bottom: 12px; color: #000 !important; text-transform: uppercase; letter-spacing: 0.5px;">
+                    S.I.I. - <span id="sii-preview-comuna-sii">SANTIAGO CENTRO</span>
+                  </div>
+
+                  <!-- Datos del Emisor -->
+                  <div class="sii-emisor" style="text-align: center; font-size: 10px; line-height: 1.35; margin-bottom: 12px; border-bottom: 1px dashed #555; padding-bottom: 8px;">
+                    <div style="font-weight: bold; font-size: 12px; text-transform: uppercase; color: #000 !important;" id="sii-preview-razon">CUSTODIA EXPRESS LTDA.</div>
+                    <div id="sii-preview-giro">Servicios de Custodia de Equipajes y Bodegaje</div>
+                    <div id="sii-preview-direccion">Av. Libertador Bernardo O'Higgins 3850</div>
+                    <div>Sucursal: <span id="sii-preview-sucursal">Terminal Santiago</span> - <span id="sii-preview-ciudad">Santiago</span></div>
+                  </div>
+
+                  <!-- Datos del Receptor e Información de Venta -->
+                  <div class="sii-info-venta" style="font-size: 10px; line-height: 1.4; margin-bottom: 8px; border-bottom: 1px dashed #555; padding-bottom: 8px;">
+                    <div><strong>Fecha Emisión:</strong> <span id="sii-preview-fecha">-</span></div>
+                    <div><strong>RUT Cliente:</strong> <span id="sii-preview-rut-receptor">-</span></div>
+                    <div><strong>Nombre Cliente:</strong> <span id="sii-preview-nombre-receptor">-</span></div>
+                    <div><strong>Email Cliente:</strong> <span id="sii-preview-email-receptor">-</span></div>
+                    <div><strong>Código Control:</strong> <span id="sii-preview-codigo-ticket">-</span></div>
+                  </div>
+
+                  <!-- Detalle de Productos -->
+                  <table style="width: 100%; border-collapse: collapse; font-size: 10px; margin: 10px 0; border-bottom: 1px dashed #555; text-align: left;">
+                    <thead>
+                      <tr style="border-bottom: 1px dashed #555;">
+                        <th style="padding: 4px 0; font-weight: bold; width: 60%;">Detalle Servicio</th>
+                        <th style="padding: 4px 0; font-weight: bold; text-align: right; width: 15%;">Cant.</th>
+                        <th style="padding: 4px 0; font-weight: bold; text-align: right; width: 25%;">Subtotal</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td style="padding: 6px 0; line-height: 1.2;" id="sii-preview-item-desc">-</td>
+                        <td style="padding: 6px 0; text-align: right; font-weight: bold;" id="sii-preview-item-qty">1</td>
+                        <td style="padding: 6px 0; text-align: right;" id="sii-preview-item-total">$0</td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  <!-- Totales y Desglose de IVA -->
+                  <div class="sii-totales" style="font-size: 10px; margin-bottom: 16px; line-height: 1.4;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+                      <span>Monto Neto:</span>
+                      <span id="sii-preview-neto">$0</span>
                     </div>
-                    <div class="receipt-row" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                      <span class="label" style="color: #555 !important;">RUT/Pasaporte:</span>
-                      <span class="value" id="ticket-preview-rut-cashier" style="color: #000 !important;">-</span>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                      <span>IVA Afecto (19%):</span>
+                      <span id="sii-preview-iva">$0</span>
                     </div>
-                    <div class="receipt-row" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                      <span class="label" style="color: #555 !important;">Cliente:</span>
-                      <span class="value" id="ticket-preview-name-cashier" style="font-weight: bold; color: #000 !important;">-</span>
-                    </div>
-                    <div class="receipt-row" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                      <span class="label" style="color: #555 !important;">Teléfono:</span>
-                      <span class="value" id="ticket-preview-phone-cashier" style="color: #000 !important;">-</span>
-                    </div>
-                    <hr style="border: none; border-top: 1px dashed #555; margin: 8px 0;">
-                    <div class="receipt-row" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                      <span class="label" style="color: #555 !important;">Tipo Equipaje:</span>
-                      <span class="value" id="ticket-preview-type-cashier" style="color: #000 !important;">-</span>
-                    </div>
-                    <div class="receipt-row" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                      <span class="label" style="color: #555 !important;">Bultos:</span>
-                      <span class="value" id="ticket-preview-pieces-cashier" style="font-weight: bold; color: #000 !important;">-</span>
-                    </div>
-                    <div class="receipt-row" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                      <span class="label" style="color: #555 !important;">Ingreso:</span>
-                      <span class="value" id="ticket-preview-date-in-cashier" style="color: #000 !important;">-</span>
-                    </div>
-                    <div class="receipt-row" style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                      <span class="label" style="color: #555 !important;">Turno/Cajero:</span>
-                      <span class="value" id="ticket-preview-shift-cashier" style="color: #000 !important;">-</span>
-                    </div>
-                    <hr style="border: none; border-top: 1px dashed #555; margin: 8px 0;">
-                    <div class="receipt-row total" style="display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; margin-top: 6px;">
-                      <span class="label" style="color: #000 !important;">Monto en Caja:</span>
-                      <span class="value" id="ticket-preview-total-cashier" style="color: #000 !important;">$0</span>
+                    <div style="display: flex; justify-content: space-between; font-weight: bold; border-top: 1px dashed #555; padding-top: 6px; font-size: 12px; color: #000 !important;">
+                      <span>TOTAL COBRADO:</span>
+                      <span id="sii-preview-total">$0</span>
                     </div>
                   </div>
-                  <div style="margin-top: 25px; text-align: center;">
-                    <div style="border-top: 1px solid #000; width: 120px; margin: 0 auto 4px auto;"></div>
-                    <p style="margin: 0; font-size: 9px; color: #555;">Firma Cajero Recepcionista</p>
+
+                  <!-- Timbre Electrónico SII (TED) -->
+                  <div class="sii-ted-section" style="text-align: center; margin-top: 16px; margin-bottom: 10px; page-break-inside: avoid;">
+                    <div id="sii-ted-barcode-svg" style="display: inline-block; width: 100%; max-width: 250px; margin: 0 auto;">
+                      <!-- Aquí se inyectará el SVG del timbre bidimensional tipo PDF417 -->
+                    </div>
+                    <div style="font-family: sans-serif; font-size: 8px; color: #000 !important; margin-top: 6px; line-height: 1.3; font-weight: bold; letter-spacing: 0.2px;">
+                      Timbre Electrónico SII<br>
+                      Res. 99 de 2020 • Verifique documento en www.sii.cl
+                    </div>
                   </div>
-                </div>
-
-                <div class="print-cut-line" style="border-top: 2px dashed #000; margin: 24px 0; position: relative; text-align: center;">
-                  <span style="position: absolute; top: -9px; left: 50%; transform: translateX(-50%); background-color: #fff; padding: 0 8px; font-size: 9px; font-weight: bold; color: #555;">TIJERAS / ADHESIVO EQUIPAJE</span>
-                </div>
-
-                <!-- ================= ETIQUETA / TAG ================= -->
-                <div class="suitcase-tag-box" style="padding: 16px 8px; text-align: center; color: #000 !important; background-color: #fff !important; border-radius: 4px; border: 2px solid #000; margin-bottom: 10px;">
-                  <p style="font-size: 10px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; margin: 0 0 4px 0; color: #000 !important;">ETIQUETA DE EQUIPAJE</p>
-                  <div id="ticket-preview-tag-code" style="font-size: 46px; font-weight: 900; margin: 4px 0; font-family: monospace; letter-spacing: 1px; line-height: 1.1; color: #000 !important;">-</div>
-                  <div id="ticket-preview-tag-name" style="font-size: 14px; font-weight: 700; text-transform: uppercase; margin: 4px 0 2px 0; font-family: sans-serif; overflow-wrap: break-word; color: #000 !important;">-</div>
-                  <div id="ticket-preview-tag-rut" style="font-size: 12px; font-family: monospace; font-weight: bold; color: #000 !important;">-</div>
                 </div>
               </div>
               <div class="receipt-footer" style="text-align: center; margin-top: 12px;">
@@ -904,6 +997,113 @@
                     <span class="material-symbols-outlined">sync</span>
                     Sincronizar
                   </button>
+                </div>
+              </article>
+
+              <!-- NUEVO: Configuración de API Boleta SII -->
+              <article class="card" style="margin-top: 24px;">
+                <div class="card-title">
+                  <span class="material-symbols-outlined">settings_applications</span>
+                  <h3>Configuración API Boleta SII</h3>
+                </div>
+                <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+                  Conecta tu sistema con el SII para emitir boletas reales a través de APIs de facturación.
+                </p>
+
+                <div style="background-color: var(--bg-tertiary); padding: 12px; border-radius: 8px; margin-bottom: 16px; font-size: 11px; line-height: 1.45;">
+                  <strong style="color: var(--primary-color); display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+                    <span class="material-symbols-outlined" style="font-size: 16px;">print</span>
+                    Configuración para Impresoras de Tickets:
+                  </strong>
+                  Para imprimir comprobantes y boletas correctamente en cualquier impresora térmica (58mm o 80mm):
+                  <ul style="margin: 4px 0 0 16px; padding: 0; list-style-type: disc;">
+                    <li>En el diálogo de impresión, selecciona tu impresora de tickets instalada.</li>
+                    <li>Establece los <strong>Márgenes en "Ninguno"</strong> (fundamental para papel continuo).</li>
+                    <li>Desmarca la opción <strong>"Encabezados y pies de página"</strong> (evita URLs en el ticket).</li>
+                    <li>Ajusta la escala al 100% o "Ajustar al área de impresión" para evitar cortes laterales.</li>
+                  </ul>
+                </div>
+
+                <div class="form-group">
+                  <label for="sii-api-provider">Proveedor de Facturación</label>
+                  <select id="sii-api-provider" class="form-input" onchange="toggleAPIFields()">
+                    <option value="Simulador">Simulador Local (Pruebas Offline)</option>
+                    <option value="Haulmer">Haulmer OpenFactura API</option>
+                    <option value="LibreDTE">LibreDTE API</option>
+                  </select>
+                </div>
+
+                <div id="sii-api-credentials-section" style="display: none;">
+                  <div class="form-group">
+                    <label for="sii-api-key">API Key / Token Autorización</label>
+                    <input type="password" id="sii-api-key" class="form-input" placeholder="Ingresa tu clave de API">
+                  </div>
+                  
+                  <div class="form-group" id="sii-libredte-url-group" style="display: none;">
+                    <label for="sii-api-url">URL del Servidor LibreDTE</label>
+                    <input type="text" id="sii-api-url" class="form-input" placeholder="https://libredte.cl">
+                  </div>
+
+                  <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                      <label for="sii-rut-emisor">RUT Emisor</label>
+                      <input type="text" id="sii-rut-emisor" class="form-input" placeholder="76.543.210-K">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                      <label for="sii-entorno">Entorno</label>
+                      <select id="sii-entorno" class="form-input">
+                        <option value="certificacion">Certificación / Sandbox</option>
+                        <option value="produccion">Producción</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <hr style="border: none; border-top: 1px solid var(--border-color); margin: 16px 0;">
+
+                <div class="form-group">
+                  <label for="sii-razon-social">Razón Social</label>
+                  <input type="text" id="sii-razon-social" class="form-input" placeholder="Custodia Express Ltda.">
+                </div>
+
+                <div class="form-group">
+                  <label for="sii-giro">Giro Comercial</label>
+                  <input type="text" id="sii-giro" class="form-input" placeholder="Servicio de Custodia de Equipajes y Bodegaje">
+                </div>
+
+                <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label for="sii-direccion">Dirección Origen</label>
+                    <input type="text" id="sii-direccion" class="form-input" placeholder="Av. Libertador B. O'Higgins 3850">
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label for="sii-comuna">Comuna</label>
+                    <input type="text" id="sii-comuna" class="form-input" placeholder="Estación Central">
+                  </div>
+                </div>
+
+                <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label for="sii-ciudad">Ciudad</label>
+                    <input type="text" id="sii-ciudad" class="form-input" placeholder="Santiago">
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label for="sii-acteco">Código Acteco</label>
+                    <input type="text" id="sii-acteco" class="form-input" placeholder="525130">
+                  </div>
+                </div>
+
+                <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label for="sii-sucursal">Nombre Sucursal</label>
+                    <input type="text" id="sii-sucursal" class="form-input" placeholder="Terminal Santiago">
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0; display: flex; align-items: flex-end;">
+                    <button type="button" class="btn-primary" style="width: 100%;" onclick="saveAPISettingsUI()">
+                      <span class="material-symbols-outlined">save</span>
+                      Guardar API
+                    </button>
+                  </div>
                 </div>
               </article>
             </div>

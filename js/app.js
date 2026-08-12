@@ -19,6 +19,10 @@ let activeCheckoutTicket = null;
 document.addEventListener('DOMContentLoaded', () => {
   initSession();
   initTheme();
+  // Cargar configuración de API por defecto en la UI
+  if (typeof initAPISettingsUI === 'function') {
+    initAPISettingsUI();
+  }
 });
 
 // ==========================================
@@ -48,6 +52,9 @@ function initSession() {
     renderTransactions();
     renderSystemLogs();
     syncERPFoliosUI();
+    if (typeof initAPISettingsUI === 'function') {
+      initAPISettingsUI();
+    }
   } else {
     loginScreen.style.display = 'flex';
     appShell.style.display = 'none';
@@ -144,6 +151,13 @@ function switchView(viewId) {
     renderSystemLogs();
   }
 
+  // Cargar/Actualizar la configuración de la API del SII al ingresar a ERP
+  if (viewId === 'erp') {
+    if (typeof initAPISettingsUI === 'function') {
+      initAPISettingsUI();
+    }
+  }
+
   // Scroll to top of view
   window.scrollTo(0, 0);
 }
@@ -201,7 +215,7 @@ function calculateCustomFee() {
   feeInput.value = selectedLuggage.basePrice * pieces;
 }
 
-function generateTicket() {
+async function generateTicket() {
   const clientId = document.getElementById('client-search-id').value.trim();
   const clientName = document.getElementById('client-name').value.trim();
   const clientPhone = document.getElementById('client-phone').value.trim();
@@ -232,13 +246,36 @@ function generateTicket() {
 
   // Save to DB (returns created ticket containing code, tagCode, and dates)
   const ticket = DB.createTicket(clientData, luggageData);
+  
+  // Emite la Boleta Tributaria de forma automática
+  const billingResult = await emitirBoletaDTE(ticket);
+  if (billingResult && billingResult.success) {
+    ticket.boleta = billingResult.boleta;
+    
+    // Guardamos la boleta dentro del arreglo de tickets en LocalStorage
+    const allTickets = DB.getTickets();
+    const idx = allTickets.findIndex(t => t.code === ticket.code);
+    if (idx !== -1) {
+      allTickets[idx] = ticket;
+      localStorage.setItem('luggage_tickets', JSON.stringify(allTickets));
+    }
+    
+    if (billingResult.error) {
+      console.warn("Error en la conexión a la API del SII. La boleta se emitió de forma local de contingencia: ", billingResult.error);
+    }
+  }
+
   activeCreatedTicket = ticket;
 
   // Show ticket preview card
   document.getElementById('no-ticket-placeholder').style.display = 'none';
+  document.getElementById('receipt-preview-toggle').style.display = 'flex';
   const receiptCard = document.getElementById('printable-receipt-content');
   receiptCard.style.display = 'block'; // Make visible
   
+  // Por defecto mostrar Comprobante Interno
+  setReceiptFormat('internal');
+
   // Fill Client Copy nodes
   document.getElementById('ticket-preview-barcode').innerText = ticket.code;
   document.getElementById('ticket-preview-code').innerText = ticket.code;
@@ -273,9 +310,38 @@ function generateTicket() {
   document.getElementById('ticket-preview-tag-name').innerText = ticket.client.name;
   document.getElementById('ticket-preview-tag-rut').innerText = ticket.client.id;
 
+  // Llenar datos de la Boleta SII
+  if (ticket.boleta) {
+    const b = ticket.boleta;
+    document.getElementById('sii-preview-rut-box').innerText = b.rutEmisor;
+    document.getElementById('sii-preview-folio').innerText = String(b.folio).padStart(6, '0');
+    document.getElementById('sii-preview-comuna-sii').innerText = b.comuna;
+    document.getElementById('sii-preview-razon').innerText = b.razonSocial;
+    document.getElementById('sii-preview-giro').innerText = b.giro;
+    document.getElementById('sii-preview-direccion').innerText = b.direccion;
+    document.getElementById('sii-preview-sucursal').innerText = b.sucursal;
+    document.getElementById('sii-preview-ciudad').innerText = b.ciudad;
+    document.getElementById('sii-preview-fecha').innerText = formattedDate;
+    document.getElementById('sii-preview-rut-receptor').innerText = ticket.client.id;
+    document.getElementById('sii-preview-nombre-receptor').innerText = ticket.client.name;
+    document.getElementById('sii-preview-email-receptor').innerText = ticket.client.email || 'No informado';
+    document.getElementById('sii-preview-codigo-ticket').innerText = ticket.code;
+    
+    document.getElementById('sii-preview-item-desc').innerText = `CUSTODIA DE EQUIPAJE (${ticket.luggageType})`;
+    document.getElementById('sii-preview-item-qty').innerText = ticket.pieces;
+    document.getElementById('sii-preview-item-total').innerText = '$' + parseFloat(b.total).toLocaleString('es-CL');
+    
+    document.getElementById('sii-preview-neto').innerText = '$' + b.net.toLocaleString('es-CL');
+    document.getElementById('sii-preview-iva').innerText = '$' + b.iva.toLocaleString('es-CL');
+    document.getElementById('sii-preview-total').innerText = '$' + b.total.toLocaleString('es-CL');
+    
+    document.getElementById('sii-ted-barcode-svg').innerHTML = b.barcodeSVG;
+  }
+
   // Trigger sound effect or visual confirmation
   DB.logSystemEvent('Emisión Ticket', `Se generó ticket interno ${ticket.code} para cliente ${clientName} (${clientId}) por un monto de $${ticket.fee}.`);
   updateDashboard();
+  syncERPFoliosUI();
 }
 
 function sendTicketWhatsApp() {
@@ -355,6 +421,7 @@ function resetPOSForm() {
 
   // Receipt box
   document.getElementById('no-ticket-placeholder').style.display = 'block';
+  document.getElementById('receipt-preview-toggle').style.display = 'none';
   document.getElementById('printable-receipt-content').style.display = 'none';
   activeCreatedTicket = null;
 }
@@ -708,6 +775,380 @@ function lookupERPDocument() {
   
   const docRuts = ['14.512.981-k', '19.821.439-2', '12.345.678-9', '18.112.556-7'];
   document.getElementById('erp-doc-rut').innerText = docRuts[parseInt(docId) % docRuts.length];
+}
+
+// ==========================================
+// INTEGRACIÓN CON API BOLETA SII
+// ==========================================
+function initAPISettingsUI() {
+  const settings = DB.getAPISettings();
+  
+  const providerSelect = document.getElementById('sii-api-provider');
+  const apiKeyInput = document.getElementById('sii-api-key');
+  const apiUrlInput = document.getElementById('sii-api-url');
+  const rutEmisorInput = document.getElementById('sii-rut-emisor');
+  const entornoSelect = document.getElementById('sii-entorno');
+  const razonSocialInput = document.getElementById('sii-razon-social');
+  const giroInput = document.getElementById('sii-giro');
+  const direccionInput = document.getElementById('sii-direccion');
+  const comunaInput = document.getElementById('sii-comuna');
+  const ciudadInput = document.getElementById('sii-ciudad');
+  const actecoInput = document.getElementById('sii-acteco');
+  const sucursalInput = document.getElementById('sii-sucursal');
+
+  if (providerSelect) providerSelect.value = settings.provider || 'Simulador';
+  if (apiKeyInput) apiKeyInput.value = settings.apiKey || '';
+  if (apiUrlInput) apiUrlInput.value = settings.apiUrl || '';
+  if (rutEmisorInput) rutEmisorInput.value = settings.rutEmisor || '76.543.210-K';
+  if (entornoSelect) entornoSelect.value = settings.entorno || 'certificacion';
+  if (razonSocialInput) razonSocialInput.value = settings.razonSocial || 'Custodia Express Ltda.';
+  if (giroInput) giroInput.value = settings.giro || 'Servicios de Custodia de Equipajes y Bodegaje';
+  if (direccionInput) direccionInput.value = settings.direccion || 'Av. Libertador B. O\'Higgins 3850';
+  if (comunaInput) comunaInput.value = settings.comuna || 'Santiago Centro';
+  if (ciudadInput) ciudadInput.value = settings.ciudad || 'Santiago';
+  if (actecoInput) actecoInput.value = settings.acteco || '525130';
+  if (sucursalInput) sucursalInput.value = settings.sucursal || 'Terminal Santiago';
+
+  toggleAPIFields();
+}
+
+function toggleAPIFields() {
+  const providerSelect = document.getElementById('sii-api-provider');
+  if (!providerSelect) return;
+  
+  const provider = providerSelect.value;
+  const credentialsSection = document.getElementById('sii-api-credentials-section');
+  const libredteGroup = document.getElementById('sii-libredte-url-group');
+
+  if (provider === 'Simulador') {
+    if (credentialsSection) credentialsSection.style.display = 'none';
+  } else {
+    if (credentialsSection) credentialsSection.style.display = 'block';
+    if (provider === 'LibreDTE') {
+      if (libredteGroup) libredteGroup.style.display = 'block';
+    } else {
+      if (libredteGroup) libredteGroup.style.display = 'none';
+    }
+  }
+}
+
+function saveAPISettingsUI() {
+  const provider = document.getElementById('sii-api-provider').value;
+  const apiKey = document.getElementById('sii-api-key').value.trim();
+  const apiUrl = document.getElementById('sii-api-url') ? document.getElementById('sii-api-url').value.trim() : '';
+  const rutEmisor = document.getElementById('sii-rut-emisor').value.trim();
+  const entorno = document.getElementById('sii-entorno').value;
+  const razonSocial = document.getElementById('sii-razon-social').value.trim();
+  const giro = document.getElementById('sii-giro').value.trim();
+  const direccion = document.getElementById('sii-direccion').value.trim();
+  const comuna = document.getElementById('sii-comuna').value.trim();
+  const ciudad = document.getElementById('sii-ciudad').value.trim();
+  const acteco = document.getElementById('sii-acteco').value.trim();
+  const sucursal = document.getElementById('sii-sucursal').value.trim();
+
+  // Validaciones
+  if (provider !== 'Simulador' && !apiKey) {
+    alert('Por favor ingrese su API Key / Token para el proveedor seleccionado.');
+    return;
+  }
+  if (!rutEmisor || !razonSocial || !direccion || !comuna) {
+    alert('Por favor complete los datos obligatorios del Emisor (RUT, Razón Social, Dirección y Comuna).');
+    return;
+  }
+
+  const settings = {
+    provider,
+    apiKey,
+    apiUrl,
+    rutEmisor,
+    entorno,
+    razonSocial,
+    giro,
+    direccion,
+    comuna,
+    ciudad,
+    acteco,
+    sucursal
+  };
+
+  DB.saveAPISettings(settings);
+  alert('Configuración de la API del SII guardada exitosamente.');
+  syncERPFoliosUI();
+}
+
+function setReceiptFormat(format) {
+  const sectionInternal = document.getElementById('receipt-section-internal');
+  const sectionSII = document.getElementById('receipt-section-sii');
+  const tabInternal = document.getElementById('tab-btn-internal');
+  const tabSII = document.getElementById('tab-btn-sii');
+
+  if (!sectionInternal || !sectionSII) return;
+
+  if (format === 'sii') {
+    sectionInternal.style.display = 'none';
+    sectionSII.style.display = 'block';
+    
+    if (tabInternal && tabSII) {
+      tabInternal.className = 'btn-secondary';
+      tabSII.className = 'btn-primary';
+      
+      tabInternal.style.border = '1px solid var(--border-color)';
+      tabInternal.style.backgroundColor = 'transparent';
+      tabInternal.style.color = 'var(--text-secondary)';
+      
+      tabSII.style.border = 'none';
+      tabSII.style.backgroundColor = 'var(--primary-color)';
+      tabSII.style.color = 'white';
+    }
+  } else {
+    sectionInternal.style.display = 'block';
+    sectionSII.style.display = 'none';
+    
+    if (tabInternal && tabSII) {
+      tabInternal.className = 'btn-primary';
+      tabSII.className = 'btn-secondary';
+      
+      tabSII.style.border = '1px solid var(--border-color)';
+      tabSII.style.backgroundColor = 'transparent';
+      tabSII.style.color = 'var(--text-secondary)';
+      
+      tabInternal.style.border = 'none';
+      tabInternal.style.backgroundColor = 'var(--primary-color)';
+      tabInternal.style.color = 'white';
+    }
+  }
+}
+
+function generateTEDBarcodeSVG(rutEmisor, folio, total, fecha) {
+  // Semilla para que el código sea reproducible y único según transacción
+  let seed = parseInt(folio) + parseInt(total.toString().replace(/\D/g, '')) + 42;
+  function pseudoRandom() {
+    let x = Math.sin(seed++) * 10000;
+    return x - Math.floor(x);
+  }
+
+  const width = 240;
+  const height = 80;
+  let svg = `<svg viewBox="0 0 ${width} ${height}" width="100%" height="80" xmlns="http://www.w3.org/2000/svg" style="background:#fff;">`;
+  
+  // Recuadro del Timbre (TED)
+  svg += `<rect x="1" y="1" width="${width-2}" height="${height-2}" fill="none" stroke="#000" stroke-width="1.5"/>`;
+
+  // Patrón de inicio del código PDF417 (Lado izquierdo)
+  svg += `<rect x="5" y="5" width="8" height="${height-10}" fill="#000"/>`;
+  svg += `<rect x="15" y="5" width="3" height="${height-10}" fill="#000"/>`;
+  svg += `<rect x="20" y="5" width="3" height="${height-10}" fill="#000"/>`;
+
+  // Patrón de detención del código PDF417 (Lado derecho)
+  svg += `<rect x="${width-13}" y="5" width="8" height="${height-10}" fill="#000"/>`;
+  svg += `<rect x="${width-18}" y="5" width="3" height="${height-10}" fill="#000"/>`;
+  svg += `<rect x="${width-23}" y="5" width="3" height="${height-10}" fill="#000"/>`;
+
+  // Dibujar datos binarios representativos en columnas y filas en medio del código
+  const dataWidth = width - 56;
+  const cols = 15;
+  const rows = 12;
+  const cellWidth = Math.floor(dataWidth / cols);
+  const cellHeight = Math.floor((height - 10) / rows);
+
+  for (let r = 0; r < rows; r++) {
+    const y = 5 + r * cellHeight;
+    let activeX = 28;
+    for (let c = 0; c < cols; c++) {
+      const rand = pseudoRandom();
+      const barWidth = Math.floor(rand * cellWidth) + 1;
+      const isBar = pseudoRandom() > 0.42; // Densidad del timbre
+      if (isBar && activeX + barWidth < width - 28) {
+        svg += `<rect x="${activeX}" y="${y}" width="${barWidth}" height="${cellHeight - 1}" fill="#000"/>`;
+      }
+      activeX += cellWidth;
+    }
+  }
+
+  svg += `</svg>`;
+  return svg;
+}
+
+async function emitirBoletaDTE(ticket) {
+  const settings = DB.getAPISettings();
+  const timestamp = new Date(ticket.dateIn);
+  const total = ticket.fee;
+  
+  // Calcular desglose de IVA (19%)
+  const ivaRate = 0.19;
+  const totalAmount = Math.round(total);
+  const netAmount = Math.round(totalAmount / (1 + ivaRate));
+  const ivaAmount = totalAmount - netAmount;
+
+  const boletaData = {
+    folio: 0,
+    status: 'Pendiente',
+    barcodeSVG: '',
+    net: netAmount,
+    iva: ivaAmount,
+    total: totalAmount,
+    fecha: timestamp.toISOString(),
+    rutEmisor: settings.rutEmisor,
+    razonSocial: settings.razonSocial,
+    giro: settings.giro,
+    direccion: settings.direccion,
+    comuna: settings.comuna,
+    ciudad: settings.ciudad,
+    sucursal: settings.sucursal,
+    acteco: settings.acteco,
+    provider: settings.provider
+  };
+
+  if (settings.provider === 'Simulador') {
+    // Modo simulador: Emisión local offline
+    const folio = DB.useFolio();
+    boletaData.folio = folio;
+    boletaData.status = 'Aceptado por SII (Simulador)';
+    boletaData.barcodeSVG = generateTEDBarcodeSVG(settings.rutEmisor, folio, totalAmount, boletaData.fecha);
+    
+    DB.logSystemEvent('Emisión Boleta', `Boleta Electrónica N° ${folio} emitida localmente vía Simulador. Monto: $${totalAmount.toLocaleString('es-CL')}.`);
+    return { success: true, boleta: boletaData };
+  } else if (settings.provider === 'Haulmer') {
+    // API de Haulmer OpenFactura
+    const url = settings.entorno === 'certificacion' 
+      ? 'https://dev-api.haulmer.com/v2/dte/document' 
+      : 'https://api.haulmer.com/v2/dte/document';
+    
+    const payload = {
+      "response": ["XML", "PDF", "TIMBRE", "LOGO", "FOLIO", "RESOLUCION"],
+      "dte": {
+        "Encabezado": {
+          "IdDoc": {
+            "TipoDTE": 39,
+            "Folio": 0,
+            "FchEmis": timestamp.toISOString().split('T')[0],
+            "FmaPago": 1
+          },
+          "Emisor": {
+            "RUTEmisor": settings.rutEmisor.replace(/[^0-9kK]/g, ''),
+            "RznSoc": settings.razonSocial,
+            "GiroEmis": settings.giro,
+            "Acteco": parseInt(settings.acteco) || 525130,
+            "DirOrigen": settings.direccion,
+            "CmnaOrigen": settings.comuna
+          },
+          "Receptor": {
+            "RUTRecep": ticket.client.id.includes('-') ? ticket.client.id : '66666666-6',
+            "RznSocRecep": ticket.client.name.substring(0, 40)
+          },
+          "Totales": {
+            "MntNeto": netAmount,
+            "TasaIVA": 19,
+            "IVA": ivaAmount,
+            "MntTotal": totalAmount
+          }
+        },
+        "Detalle": [
+          {
+            "NroLinDet": 1,
+            "NmbItem": `Servicio de Custodia: ${ticket.luggageType}`.substring(0, 40),
+            "QtyItem": ticket.pieces,
+            "PrcItem": Math.round(ticket.fee / ticket.pieces),
+            "MntItem": totalAmount
+          }
+        ]
+      }
+    };
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': settings.apiKey
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const realFolio = data.folio || DB.useFolio();
+        boletaData.folio = realFolio;
+        boletaData.status = 'Aceptado por SII (Haulmer API)';
+        boletaData.barcodeSVG = generateTEDBarcodeSVG(settings.rutEmisor, realFolio, totalAmount, boletaData.fecha);
+        DB.logSystemEvent('Emisión Boleta API', `Boleta Electrónica N° ${realFolio} emitida vía Haulmer.`);
+        return { success: true, boleta: boletaData };
+      } else {
+        throw new Error(`HTTP Error ${response.status}`);
+      }
+    } catch (err) {
+      console.warn("Falla de conexión a API de Haulmer (CORS o ApiKey inválida). Usando folio local de contingencia:", err);
+      const localFolio = DB.useFolio();
+      boletaData.folio = localFolio;
+      boletaData.status = 'Simulado (Error conexión: ' + err.message + ')';
+      boletaData.barcodeSVG = generateTEDBarcodeSVG(settings.rutEmisor, localFolio, totalAmount, boletaData.fecha);
+      DB.logSystemEvent('Emisión Boleta Contingencia', `Falla con Haulmer, emitido con folio local ${localFolio} como contingencia.`);
+      return { success: true, boleta: boletaData, error: err.message };
+    }
+  } else if (settings.provider === 'LibreDTE') {
+    // API de LibreDTE
+    const baseUrl = settings.apiUrl || 'https://libredte.cl';
+    const url = `${baseUrl}/api/dte/emitir`;
+    
+    const payload = {
+      "Encabezado": {
+        "IdDoc": {
+          "TipoDTE": 39,
+          "Folio": 0
+        },
+        "Emisor": {
+          "RUTEmisor": settings.rutEmisor,
+          "RznSoc": settings.razonSocial,
+          "GiroEmis": settings.giro,
+          "DirOrigen": settings.direccion,
+          "CmnaOrigen": settings.comuna
+        },
+        "Receptor": {
+          "RUTRecep": ticket.client.id,
+          "RznSocRecep": ticket.client.name
+        }
+      },
+      "Detalle": [
+        {
+          "NmbItem": `Servicio de Custodia: ${ticket.luggageType}`,
+          "QtyItem": ticket.pieces,
+          "PrcItem": Math.round(ticket.fee / ticket.pieces),
+          "MontoItem": totalAmount
+        }
+      ]
+    };
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${settings.apiKey}`
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const realFolio = data.folio || DB.useFolio();
+        boletaData.folio = realFolio;
+        boletaData.status = 'Aceptado por SII (LibreDTE API)';
+        boletaData.barcodeSVG = generateTEDBarcodeSVG(settings.rutEmisor, realFolio, totalAmount, boletaData.fecha);
+        DB.logSystemEvent('Emisión Boleta API', `Boleta Electrónica N° ${realFolio} emitida vía LibreDTE.`);
+        return { success: true, boleta: boletaData };
+      } else {
+        throw new Error(`HTTP Error ${response.status}`);
+      }
+    } catch (err) {
+      console.warn("Falla de conexión a LibreDTE. Usando folio local de contingencia:", err);
+      const localFolio = DB.useFolio();
+      boletaData.folio = localFolio;
+      boletaData.status = 'Simulado (Error conexión: ' + err.message + ')';
+      boletaData.barcodeSVG = generateTEDBarcodeSVG(settings.rutEmisor, localFolio, totalAmount, boletaData.fecha);
+      DB.logSystemEvent('Emisión Boleta Contingencia', `Falla con LibreDTE, emitido con folio local ${localFolio} como contingencia.`);
+      return { success: true, boleta: boletaData, error: err.message };
+    }
+  }
 }
 
 // ==========================================

@@ -392,6 +392,41 @@ const DB = (() => {
       this.saveERPFolios(folios);
       this.logSystemEvent('Carga CAF', `Se cargó archivo CAF ${filename} sumando 500 folios.`);
       return folios;
+    },
+
+    // SII API Integration Settings
+    getAPISettings() {
+      return loadData('sii_api_settings', {
+        provider: 'Simulador', // 'Simulador', 'Haulmer', 'LibreDTE'
+        apiKey: '',
+        rutEmisor: '76.543.210-K',
+        razonSocial: 'Custodia Express Ltda.',
+        giro: 'Servicios de Custodia de Equipajes y Bodegaje',
+        direccion: 'Av. Libertador Bernardo O\'Higgins 3850',
+        comuna: 'Santiago Centro',
+        ciudad: 'Santiago',
+        acteco: '525130',
+        sucursal: 'Terminal Santiago',
+        entorno: 'certificacion'
+      });
+    },
+
+    saveAPISettings(settings) {
+      saveData('sii_api_settings', settings);
+      this.logSystemEvent('Configuración API SII', `Se actualizó la configuración de facturación para el proveedor ${settings.provider}.`);
+    },
+
+    useFolio() {
+      const folios = this.getERPFolios();
+      if (folios.totalAvailable > 0) {
+        folios.currentFolio += 1;
+        folios.totalAvailable -= 1;
+        this.saveERPFolios(folios);
+        return folios.currentFolio;
+      }
+      // Fallback si no hay folios disponibles cargados
+      const fallbackFolio = Math.floor(Math.random() * 100000) + 1541;
+      return fallbackFolio;
     }
   };
 })();

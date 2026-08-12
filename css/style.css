@@ -1284,26 +1284,58 @@ body.theme-night .login-card {
   }
 }
 
-/* Printing styling */
+/* Printing styling optimized for Thermal Printers (58mm / 80mm) */
 @media print {
-  body * {
-    visibility: hidden;
+  @page {
+    margin: 0mm;
+    size: auto;
   }
-  #printable-receipt-content, #printable-receipt-content * {
-    visibility: visible;
-  }
-  #printable-receipt-content {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    border: none;
-    box-shadow: none;
-    padding: 0;
-  }
-  .receipt-actions {
+
+  /* Ocultar la UI del shell y de navegación */
+  #app-shell, 
+  .app-sidebar, 
+  .app-header, 
+  .view-container, 
+  .mobile-nav, 
+  .modal-backdrop,
+  .receipt-actions, 
+  #receipt-preview-toggle,
+  .receipt-footer {
     display: none !important;
   }
+
+  /* Limpiar cuerpo para impresión limpia */
+  body, html {
+    background-color: #fff !important;
+    color: #000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 280px !important; /* Evitar desborde en papel térmico de 58/80mm */
+    font-family: monospace !important;
+  }
+
+  /* Forzar visibilidad y estilo del ticket térmico */
+  #printable-receipt-content {
+    display: block !important;
+    width: 280px !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 6px !important;
+    margin: 0 !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+}
+
+/* Estilos de visualización en pantalla para la Boleta SII */
+.ticket-receipt-card .sii-box {
+  border-color: #d32f2f !important;
+  color: #d32f2f !important;
+}
+
+.ticket-receipt-card table th, 
+.ticket-receipt-card table td {
+  color: #000 !important;
 }
 
 /* ==========================================================================
