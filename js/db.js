@@ -178,6 +178,7 @@ const DB = (() => {
           email: clientData.email || ''
         },
         luggageType: luggageData.type, // 'Mochila', 'Maleta Mediana', 'Maleta Grande', 'Especial'
+        luggageItems: luggageData.items || [],
         pieces: parseInt(luggageData.pieces) || 1,
         fee: parseFloat(luggageData.fee) || 0,
         notes: luggageData.notes || '',
@@ -233,7 +234,12 @@ const DB = (() => {
         '600 - Caja': 1000,
         '300 - Fardo o Saco': 1000
       };
-      const dailyPrice = (prices[ticket.luggageType] || 1000) * ticket.pieces;
+      let dailyPrice = 0;
+      if (ticket.luggageItems && ticket.luggageItems.length > 0) {
+        dailyPrice = ticket.luggageItems.reduce((sum, item) => sum + (prices[item.type] || item.basePrice || 1000) * (item.quantity || 1), 0);
+      } else {
+        dailyPrice = (prices[ticket.luggageType] || 1000) * ticket.pieces;
+      }
       const totalAmount = dailyPrice * daysStayed;
       const additionalFee = Math.max(0, totalAmount - ticket.fee);
 

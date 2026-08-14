@@ -3,11 +3,9 @@
  * Coordinates UI updates, tab changes, and event listeners.
  */
 
-// Selected luggage type for ticket creation
-let selectedLuggage = {
-  type: '100 - Maleta',
-  basePrice: 2000
-};
+// Array of selected luggage items
+// Each item is: { type: string, basePrice: number, quantity: number }
+let selectedLuggages = [];
 
 // Currently generated ticket for preview
 let activeCreatedTicket = null;
@@ -22,6 +20,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // Cargar configuración de API por defecto en la UI
   if (typeof initAPISettingsUI === 'function') {
     initAPISettingsUI();
+  }
+  // Initialize default selected luggage option
+  const defaultOption = document.querySelector('.type-option');
+  if (defaultOption) {
+    document.querySelectorAll('.type-option').forEach(opt => opt.classList.remove('selected'));
+    selectLuggageType('100 - Maleta', 1000, defaultOption);
   }
 });
 
@@ -198,21 +202,90 @@ function lookupClient() {
 // POS: LUGGAGE CALCULATIONS & TICKET
 // ==========================================
 function selectLuggageType(type, basePrice, element) {
-  // Remove selected from other type options
-  document.querySelectorAll('.type-option').forEach(opt => opt.classList.remove('selected'));
-  
-  // Mark current selected
-  element.classList.add('selected');
-  selectedLuggage.type = type;
-  selectedLuggage.basePrice = basePrice;
+  // If click originated from the quantity controls, do not toggle selection here
+  if (window.event && (window.event.target.closest('.qty-controls') || window.event.target.classList.contains('qty-btn'))) {
+    return;
+  }
+
+  const existingIdx = selectedLuggages.findIndex(item => item.type === type);
+
+  if (existingIdx !== -1) {
+    // If already selected, click deselects it
+    selectedLuggages.splice(existingIdx, 1);
+    element.classList.remove('selected');
+    const controls = element.querySelector('.qty-controls');
+    if (controls) {
+      controls.remove();
+    }
+  } else {
+    // Add new item with qty 1
+    selectedLuggages.push({ type, basePrice, quantity: 1 });
+    element.classList.add('selected');
+    
+    // Create and append quantity controls
+    const qtyControls = document.createElement('div');
+    qtyControls.className = 'qty-controls';
+    qtyControls.innerHTML = `
+      <button type="button" class="qty-btn" onclick="adjustLuggageQty('${type}', ${basePrice}, -1, event)">-</button>
+      <span class="qty-val">1</span>
+      <button type="button" class="qty-btn" onclick="adjustLuggageQty('${type}', ${basePrice}, 1, event)">+</button>
+    `;
+    element.appendChild(qtyControls);
+  }
 
   calculateCustomFee();
 }
 
+function adjustLuggageQty(type, basePrice, delta, event) {
+  if (event) {
+    event.stopPropagation();
+  }
+  
+  const idx = selectedLuggages.findIndex(item => item.type === type);
+  if (idx === -1) return;
+  
+  selectedLuggages[idx].quantity += delta;
+  
+  // Find matching DOM card
+  const options = document.querySelectorAll('.type-option');
+  let targetOption = null;
+  for (let opt of options) {
+    if (opt.querySelector('.type-label').innerText === type) {
+      targetOption = opt;
+      break;
+    }
+  }
+  
+  if (selectedLuggages[idx].quantity <= 0) {
+    selectedLuggages.splice(idx, 1);
+    if (targetOption) {
+      targetOption.classList.remove('selected');
+      const controls = targetOption.querySelector('.qty-controls');
+      if (controls) controls.remove();
+    }
+  } else {
+    if (targetOption) {
+      const qtySpan = targetOption.querySelector('.qty-val');
+      if (qtySpan) {
+        qtySpan.innerText = selectedLuggages[idx].quantity;
+      }
+    }
+  }
+  
+  calculateCustomFee();
+}
+
 function calculateCustomFee() {
-  const pieces = parseInt(document.getElementById('luggage-pieces').value) || 1;
-  const feeInput = document.getElementById('luggage-fee');
-  feeInput.value = selectedLuggage.basePrice * pieces;
+  let totalPieces = 0;
+  let totalFee = 0;
+  
+  selectedLuggages.forEach(item => {
+    totalPieces += item.quantity;
+    totalFee += item.basePrice * item.quantity;
+  });
+  
+  document.getElementById('luggage-pieces').value = totalPieces;
+  document.getElementById('luggage-fee').value = totalFee;
 }
 
 async function generateTicket() {
@@ -231,6 +304,11 @@ async function generateTicket() {
       return;
     }
 
+    if (selectedLuggages.length === 0) {
+      alert('Por favor seleccione al menos un tipo de equipaje.');
+      return;
+    }
+
     const clientData = {
       id: clientId,
       name: clientName,
@@ -238,8 +316,11 @@ async function generateTicket() {
       email: clientEmail
     };
 
+    const typeStr = selectedLuggages.map(item => `${item.quantity}x ${item.type}`).join(', ');
+
     const luggageData = {
-      type: selectedLuggage.type,
+      type: typeStr,
+      items: selectedLuggages,
       pieces: luggagePieces,
       fee: luggageFee,
       notes: luggageNotes
@@ -328,9 +409,29 @@ async function generateTicket() {
       document.getElementById('sii-preview-email-receptor').innerText = ticket.client.email || 'No informado';
       document.getElementById('sii-preview-codigo-ticket').innerText = ticket.code;
       
-      document.getElementById('sii-preview-item-desc').innerText = `CUSTODIA DE EQUIPAJE (${ticket.luggageType})`;
-      document.getElementById('sii-preview-item-qty').innerText = ticket.pieces;
-      document.getElementById('sii-preview-item-total').innerText = '$' + parseFloat(b.total).toLocaleString('es-CL');
+      const itemsBody = document.getElementById('sii-preview-items-body');
+      if (itemsBody) {
+        itemsBody.innerHTML = '';
+        if (ticket.luggageItems && ticket.luggageItems.length > 0) {
+          ticket.luggageItems.forEach(item => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td style="padding: 6px 0; line-height: 1.2;">CUSTODIA: ${item.type}</td>
+              <td style="padding: 6px 0; text-align: right; font-weight: bold;">${item.quantity}</td>
+              <td style="padding: 6px 0; text-align: right;">$${(item.basePrice * item.quantity).toLocaleString('es-CL')}</td>
+            `;
+            itemsBody.appendChild(tr);
+          });
+        } else {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td style="padding: 6px 0; line-height: 1.2;">CUSTODIA DE EQUIPAJE (${ticket.luggageType})</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: bold;">${ticket.pieces}</td>
+            <td style="padding: 6px 0; text-align: right;">$${parseFloat(b.total).toLocaleString('es-CL')}</td>
+          `;
+          itemsBody.appendChild(tr);
+        }
+      }
       
       document.getElementById('sii-preview-neto').innerText = '$' + b.net.toLocaleString('es-CL');
       document.getElementById('sii-preview-iva').innerText = '$' + b.iva.toLocaleString('es-CL');
@@ -535,6 +636,14 @@ function resetPOSForm() {
   document.getElementById('luggage-pieces').value = 1;
   document.getElementById('luggage-fee').value = '';
   document.getElementById('luggage-notes').value = '';
+  
+  // Reset selectedLuggages and DOM classes
+  selectedLuggages = [];
+  document.querySelectorAll('.type-option').forEach(opt => {
+    opt.classList.remove('selected');
+    const controls = opt.querySelector('.qty-controls');
+    if (controls) controls.remove();
+  });
   
   // Set first type as selected
   const defaultOption = document.querySelector('.type-option');
@@ -1179,15 +1288,36 @@ async function emitirBoletaDTE(ticket) {
             "MntTotal": totalAmount
           }
         },
-        "Detalle": [
-          {
-            "NroLinDet": 1,
-            "NmbItem": `Servicio de Custodia: ${ticket.luggageType}`.substring(0, 40),
-            "QtyItem": ticket.pieces,
-            "PrcItem": Math.round(ticket.fee / ticket.pieces),
-            "MntItem": totalAmount
+        "Detalle": (() => {
+          let detalleDTE = [];
+          if (ticket.luggageItems && ticket.luggageItems.length > 0) {
+            detalleDTE = ticket.luggageItems.map((item, idx) => ({
+              "NroLinDet": idx + 1,
+              "NmbItem": `Custodia: ${item.type}`.substring(0, 40),
+              "QtyItem": item.quantity,
+              "PrcItem": Math.round(item.basePrice),
+              "MntItem": Math.round(item.basePrice * item.quantity)
+            }));
+            
+            const itemsTotal = detalleDTE.reduce((sum, item) => sum + item.MntItem, 0);
+            if (itemsTotal !== totalAmount) {
+              const diff = totalAmount - itemsTotal;
+              detalleDTE[0].MntItem += diff;
+              detalleDTE[0].PrcItem = Math.round(detalleDTE[0].MntItem / detalleDTE[0].QtyItem);
+            }
+          } else {
+            detalleDTE = [
+              {
+                "NroLinDet": 1,
+                "NmbItem": `Servicio de Custodia: ${ticket.luggageType}`.substring(0, 40),
+                "QtyItem": ticket.pieces,
+                "PrcItem": Math.round(ticket.fee / ticket.pieces),
+                "MntItem": totalAmount
+              }
+            ];
           }
-        ]
+          return detalleDTE;
+        })()
       }
     };
 
@@ -1244,14 +1374,34 @@ async function emitirBoletaDTE(ticket) {
           "RznSocRecep": ticket.client.name
         }
       },
-      "Detalle": [
-        {
-          "NmbItem": `Servicio de Custodia: ${ticket.luggageType}`,
-          "QtyItem": ticket.pieces,
-          "PrcItem": Math.round(ticket.fee / ticket.pieces),
-          "MontoItem": totalAmount
+      "Detalle": (() => {
+        let detalleLibreDTE = [];
+        if (ticket.luggageItems && ticket.luggageItems.length > 0) {
+          detalleLibreDTE = ticket.luggageItems.map((item, idx) => ({
+            "NmbItem": `Custodia: ${item.type}`,
+            "QtyItem": item.quantity,
+            "PrcItem": Math.round(item.basePrice),
+            "MontoItem": Math.round(item.basePrice * item.quantity)
+          }));
+          
+          const itemsTotal = detalleLibreDTE.reduce((sum, item) => sum + item.MontoItem, 0);
+          if (itemsTotal !== totalAmount) {
+            const diff = totalAmount - itemsTotal;
+            detalleLibreDTE[0].MontoItem += diff;
+            detalleLibreDTE[0].PrcItem = Math.round(detalleLibreDTE[0].MontoItem / detalleLibreDTE[0].QtyItem);
+          }
+        } else {
+          detalleLibreDTE = [
+            {
+              "NmbItem": `Servicio de Custodia: ${ticket.luggageType}`,
+              "QtyItem": ticket.pieces,
+              "PrcItem": Math.round(ticket.fee / ticket.pieces),
+              "MontoItem": totalAmount
+            }
+          ];
         }
-      ]
+        return detalleLibreDTE;
+      })()
     };
 
     try {

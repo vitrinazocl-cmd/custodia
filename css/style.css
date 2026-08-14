@@ -1540,3 +1540,63 @@ body.fullscreen-active .view-container {
 .btn-toggle-fullscreen span {
   font-size: 22px;
 }
+
+/* Quantity controls inside selected type-option */
+.qty-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 6px;
+  background-color: var(--bg-secondary);
+  border-radius: 20px;
+  padding: 2px 8px;
+  border: 1px solid var(--border-color);
+  width: fit-content;
+}
+
+.theme-night .qty-controls {
+  background-color: var(--bg-tertiary);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.qty-btn {
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-weight: bold;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+
+.theme-night .qty-btn {
+  color: var(--text-primary);
+}
+
+.qty-btn:hover {
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+.theme-night .qty-btn:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.qty-val {
+  font-size: 13px;
+  font-weight: bold;
+  min-width: 16px;
+  text-align: center;
+  color: var(--text-primary);
+}
+
+.theme-night .qty-val {
+  color: var(--text-primary);
+}
